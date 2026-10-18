@@ -595,7 +595,8 @@
   // 親指シフトは黒猫ダッシュ（CatRun）、モールスはほうきフライト（WitchFly）
   const CAT_CHANCE = 1;     // ノーミスのとき割り込む確率
   const CAT_COOLDOWN = 0;   // 一度割り込んだら、次の判定まで最低この語数あける
-  const activeMini = () => [CatRun, WitchFly].find((m) => m.active());
+  const activeMini = () => [CatRun, WitchFly, CandyCatch].find((m) => m.active());
+  const MINI_CLEAR = new Map([[CatRun, '逃げきった！'], [WitchFly, '飛びきった！'], [CandyCatch, '取りきった！']]);
 
   function startCat() {
     const g = game;
@@ -612,7 +613,7 @@
       const p = preset();
       const m = M();
       const mini = pick(m.minis);
-      const clearLine = mini === WitchFly ? '飛びきった！' : '逃げきった！';
+      const clearLine = MINI_CLEAR.get(mini);
       mini.start({
         music: catBgm.error ? null : catBgm,
         muted: !bgmOn,  // BGM OFF でも曲の長さで終わるよう、無音で再生する
@@ -629,7 +630,7 @@
           syncBgm();
           renderQuestion();
           updateStats();
-          ghostSay(r.cleared ? `${clearLine} ${r.meters}m` : 'おかえり！');
+          ghostSay(r.cleared ? `${clearLine} ${r.meters}${r.unit || 'm'}` : 'おかえり！');
         },
       });
     }, 450);
@@ -1076,6 +1077,10 @@
       case 'KeyH': startTutorial(); break;
       case 'KeyT': if (!isMorse()) cyclePreset(); break;
       case 'KeyM': toggleBgm(); break;
+      case 'Digit1': if (DEBUG) debugMini(WitchFly); break;
+      case 'Digit2': if (DEBUG) debugMini(CatRun); break;
+      case 'Digit3': if (DEBUG) debugMini(CandyCatch); break;
+      case 'Digit4': if (DEBUG) toggleInvincible(); break;
     }
   }
   function playKey(e) {
@@ -1131,6 +1136,46 @@
   // フォーカスが残ると Enter で再度押されてしまうので外す
   $('#btn-share-x').addEventListener('click', (e) => { shareX(); e.currentTarget.blur(); });
   $('#btn-copy').addEventListener('click', (e) => { copyResult(); e.currentTarget.blur(); });
+
+  // ===== デバッグ（URL に ?debug を付けると、タイトルからミニゲームだけを遊べる） =====
+  // 1：魔女 ／ 2：猫 ／ 3：お菓子 ／ 4：無敵の切り替え。当たり判定も表示する
+  const DEBUG = new URLSearchParams(location.search).has('debug');
+  let invincible = false;
+  function debugMini(mini) {
+    if (screen !== 'title' || activeMini()) return;
+    audioCtx();
+    bgm.pause();
+    mini.start({
+      music: catBgm.error ? null : catBgm,
+      muted: !bgmOn,
+      sound: se,
+      jumpCodes: [],
+      debug: true,
+      invincible,
+      onEnd(r) {
+        syncBgm();
+        toast(`${r.cleared ? 'クリア' : 'アウト'}：${r.meters}m`);
+      },
+    });
+  }
+  function toggleInvincible() {
+    invincible = !invincible;
+    $('#dbg-inv').innerHTML = `無敵：${invincible ? 'ON' : 'OFF'} <kbd>4</kbd>`;
+  }
+  if (DEBUG) {
+    const box = document.createElement('div');
+    box.className = 'debug-box';
+    box.innerHTML = '<b>DEBUG</b>'
+      + '<button type="button" id="dbg-witch">魔女 <kbd>1</kbd></button>'
+      + '<button type="button" id="dbg-cat">猫 <kbd>2</kbd></button>'
+      + '<button type="button" id="dbg-candy">お菓子 <kbd>3</kbd></button>'
+      + '<button type="button" id="dbg-inv">無敵：OFF <kbd>4</kbd></button>';
+    document.body.append(box);
+    $('#dbg-witch').addEventListener('click', (e) => { e.currentTarget.blur(); debugMini(WitchFly); });
+    $('#dbg-cat').addEventListener('click', (e) => { e.currentTarget.blur(); debugMini(CatRun); });
+    $('#dbg-candy').addEventListener('click', (e) => { e.currentTarget.blur(); debugMini(CandyCatch); });
+    $('#dbg-inv').addEventListener('click', (e) => { e.currentTarget.blur(); toggleInvincible(); });
+  }
 
   // ===== 初期化 =====
   {

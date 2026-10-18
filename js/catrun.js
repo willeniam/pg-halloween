@@ -110,7 +110,7 @@ const CatRun = (() => {
   }
 
   function crash() {
-    if (st.phase !== 'run') return;
+    if (st.phase !== 'run' || st.opts.invincible) return;
     st.phase = 'crash';
     st.phaseAt = performance.now();
     stopMusic();
@@ -277,6 +277,22 @@ const CatRun = (() => {
     drawGround(s.scroll);
     for (const o of s.obs) drawObstacle(o);
     drawCat(s);
+    if (s.opts.debug) drawHitboxes(s);
+  }
+
+  // デバッグ用：当たり判定（update() の判定と同じ範囲）
+  function drawHitboxes(s) {
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#5ff4ff';
+    ctx.strokeRect(CAT_X + 14, GROUND - s.cat.y - 30, 40, 30);
+    ctx.strokeStyle = '#ff3d6a';
+    for (const o of s.obs) ctx.strokeRect(o.x + 5, GROUND - (o.h - 6), o.w - 10, o.h - 6);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`view ${Math.round(viewW)}×${Math.round(VIEW_H)}  pace ${pace.toFixed(2)}  speed ${Math.round(s.speed)}`, 8, 14);
+    ctx.restore();
   }
 
 

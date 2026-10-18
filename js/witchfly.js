@@ -137,7 +137,7 @@ const WitchFly = (() => {
   }
 
   function crash() {
-    if (st.phase !== 'run') return;
+    if (st.phase !== 'run' || st.opts.invincible) return;
     st.phase = 'crash';
     st.phaseAt = performance.now();
     st.w.vy = Math.min(st.w.vy, -120);
@@ -328,7 +328,8 @@ const WitchFly = (() => {
       w.y += w.vy * dt;
       if (w.y + HIT.y < CEIL) { w.y = CEIL - HIT.y; w.vy = Math.max(0, w.vy); }
       const hb = { x: WX + HIT.x, y: w.y + HIT.y, w: HIT.w, h: HIT.h };
-      if (hb.y + hb.h >= GROUND) crash();
+      if (hb.y + hb.h >= GROUND && s.opts.invincible) { w.y = GROUND - HIT.y - HIT.h; w.vy = 0; }
+      else if (hb.y + hb.h >= GROUND) crash();
       else {
         outer: for (const o of s.obs) {
           for (const b of boxes(o)) if (overlap(hb, b)) { crash(); break outer; }
@@ -369,6 +370,24 @@ const WitchFly = (() => {
     for (const o of s.obs) drawObstacle(o, s.clock);
     drawSparks(s);
     drawWitch(s);
+    if (s.opts.debug) drawHitboxes(s);
+  }
+
+  // デバッグ用：当たり判定の箱と、1つ前の障害物の「通れる範囲」
+  function drawHitboxes(s) {
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#5ff4ff';
+    ctx.strokeRect(WX + HIT.x, s.w.y + HIT.y, HIT.w, HIT.h);
+    ctx.strokeStyle = '#ff3d6a';
+    for (const o of s.obs) for (const b of boxes(o)) ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = 'rgba(95, 244, 255, .08)';
+    ctx.fillRect(viewW - 14, s.free[0], 14, s.free[1] - s.free[0]);
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`view ${Math.round(viewW)}×${Math.round(VIEW_H)}  pace ${pace.toFixed(2)}  speed ${Math.round(s.speed)}`, 8, 14);
+    ctx.restore();
   }
 
   function drawSky(s) {
