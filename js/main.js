@@ -44,14 +44,6 @@
     }
     return actx;
   };
-  const SE_FILES = { correct: 'assets/se_correct.mp3', miss: 'assets/se_miss.mp3', clear: 'assets/se_clear.mp3', result: 'assets/se_result.mp3' };
-  const seAudio = {};
-  for (const [name, src] of Object.entries(SE_FILES)) {
-    const a = new Audio();
-    a.preload = 'auto';
-    a.addEventListener('canplaythrough', () => { seAudio[name] = a; }, { once: true });
-    a.src = src;
-  }
   function tone(freq, dur, type = 'sine', vol = 0.08, delay = 0) {
     const ctx = audioCtx();
     if (!ctx) return;
@@ -67,12 +59,6 @@
     o.stop(t + dur);
   }
   function se(name) {
-    if (seAudio[name]) {
-      const a = seAudio[name].cloneNode();
-      a.volume = 0.6;
-      a.play().catch(() => {});
-      return;
-    }
     if (name === 'correct') tone(880 + Math.random() * 220, 0.08, 'triangle', 0.05);
     else if (name === 'miss') { tone(160, 0.18, 'sawtooth', 0.05); tone(120, 0.2, 'sawtooth', 0.04, 0.05); }
     else if (name === 'clear') [660, 880, 1320].forEach((f, i) => tone(f, 0.18, 'triangle', 0.06, i * 0.07));
@@ -425,8 +411,8 @@
   }
 
   // ===== 黒猫ダッシュ（ノーミスで単語を打つと、次の単語の前に割り込む） =====
-  const CAT_CHANCE = 1;     // ノーミスのとき割り込む確率（1 = 必ず）
-  const CAT_COOLDOWN = 0;   // 一度割り込んだら、次の判定まで最低この語数あける（開始直後も同様）
+  const CAT_CHANCE = 1;     // ノーミスのとき割り込む確率
+  const CAT_COOLDOWN = 0;   // 一度割り込んだら、次の判定まで最低この語数あける
 
   function startCat() {
     const g = game;
