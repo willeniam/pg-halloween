@@ -284,8 +284,8 @@
     game = {
       questions: buildQuestions(), qi: 0, pos: 0,
       correct: 0, miss: 0, combo: 0, maxCombo: 0,
-      startTime: null, endTime: null, missed: new Set(), weak: {}, finished: false,
-      catLock: false, catCool: CAT_COOLDOWN,
+      startTime: null, endTime: null, missed: new Set(), finished: false,
+      catLock: false, catCool: CAT_COOLDOWN, catPlays: 0, result: null,
     };
     resetInput();
     show('play');
@@ -399,7 +399,6 @@
       game.miss++;
       game.combo = 0;
       game.missed.add(game.pos);
-      game.weak[target] = (game.weak[target] || 0) + 1;
       se('miss');
       if (keyEls[code]) retrigger(keyEls[code], 'wrong');
       const r = curEl.getBoundingClientRect();
@@ -436,6 +435,8 @@
         jumpCodes: [...p.left, ...p.right],
         onEnd(r) {
           if (game !== g) return;
+          g.catPlays++;
+          recordCat(r, g.catPlays);
           // ミニゲーム中の時間は入力速度に含めない
           if (g.startTime !== null) g.startTime += now() - t0;
           g.catLock = false;
@@ -479,23 +480,16 @@
     $('#res-combo').textContent = game.maxCombo;
     $('#res-miss').textContent = game.miss;
     const sec = Math.round(min * 60);
-    $('#res-time').textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const time = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    $('#res-time').textContent = time;
+    game.result = { rank, score, acc, cpm, time };
 
-    const weak = Object.entries(game.weak).sort((a, b) => b[1] - a[1]).slice(0, 4);
-    const ul = $('#res-weak');
-    ul.innerHTML = '';
-    if (!weak.length) {
-      const li = document.createElement('li');
-      li.textContent = 'ノーミス！ 呪いは効かなかった…';
-      li.style.background = 'rgba(126,240,176,.12)';
-      li.style.borderColor = 'rgba(126,240,176,.5)';
-      ul.append(li);
-    }
-    for (const [ch, n] of weak) {
-      const li = document.createElement('li');
-      li.innerHTML = `<b>${ch}</b>${hintHtml(ch)}（${n}回）`;
-      ul.append(li);
-    }
+    const st = loadStats();
+    st.games++;
+    if (game.miss === 0) st.perfectGames++;
+    if (rank.rank === 'S') st.sRanks++;
+    store.set('nh-stats', st);
+    renderBadges(st);
 
     const g = game;
     setTimeout(() => {
@@ -507,6 +501,85 @@
         burst(r.left + r.width / 2, r.top + r.height / 2, 40, true);
       }
     }, 750);
+  }
+
+  // ===== バッジ =====
+  const CAT_MAX = QUESTION_COUNT - 1;
+  const BADGES = [
+    { id: 'cat1', icon: '🐈', name: 'ハロウィンの新人', cond: '黒猫ダッシュを初めてプレイ', ok: (s) => s.catPlays >= 1 },
+    { id: 'cat5', icon: '🐾', name: '黒猫となかよし', cond: '黒猫ダッシュを合計5回プレイ', ok: (s) => s.catPlays >= 5 },
+    { id: 'cat9', icon: '🎃', name: '黒猫まみれ', cond: `1回のゲームで黒猫ダッシュを${CAT_MAX}回（最大）プレイ`, ok: (s) => s.catMaxInGame >= CAT_MAX },
+    { id: 'clear1', icon: '🌙', name: '奇跡の生還', cond: '黒猫ダッシュを初めてクリア', ok: (s) => s.catClears >= 1 },
+    { id: 'clear5', icon: '🦇', name: '逃げ足名人', cond: '黒猫ダッシュを合計5回クリア', ok: (s) => s.catClears >= 5 },
+    { id: 'm1000', icon: '👣', name: '真夜中のおさんぽ', cond: '黒猫ダッシュで合計1000m走る', ok: (s) => s.catMeters >= 1000 },
+    { id: 'm10000', icon: '🧹', name: '真夜中のマラソン', cond: '黒猫ダッシュで合計10000m走る', ok: (s) => s.catMeters >= 10000 },
+    { id: 'game1', icon: '👻', name: 'はじめの一歩', cond: 'ゲームを最後までプレイ', ok: (s) => s.games >= 1 },
+    { id: 'nomiss', icon: '✨', name: '天才魔女', cond: 'ノーミスで最後までプレイ', ok: (s) => s.perfectGames >= 1 },
+    { id: 'rankS', icon: '👑', name: '大魔女', cond: 'Sランクをとる', ok: (s) => s.sRanks >= 1 },
+  ];
+  function loadStats() {
+    return {
+      catPlays: 0, catClears: 0, catMeters: 0, catMaxInGame: 0, games: 0, perfectGames: 0, sRanks: 0,
+      ...store.get('nh-stats', {}),
+    };
+  }
+  function recordCat(r, playsThisGame) {
+    const st = loadStats();
+    st.catPlays++;
+    if (r.cleared) st.catClears++;
+    st.catMeters += r.meters;
+    st.catMaxInGame = Math.max(st.catMaxInGame, playsThisGame);
+    store.set('nh-stats', st);
+  }
+  function renderBadges(st) {
+    const had = new Set(store.get('nh-badges', []));
+    const got = BADGES.filter((b) => b.ok(st)).map((b) => b.id);
+    store.set('nh-badges', got);
+    const ul = $('#res-badges');
+    ul.innerHTML = '';
+    for (const b of BADGES) {
+      const on = got.includes(b.id);
+      const li = document.createElement('li');
+      li.className = 'badge' + (on ? '' : ' locked') + (on && !had.has(b.id) ? ' new' : '');
+      li.innerHTML = `<span class="bd-icon">${b.icon}</span>`
+        + `<span class="bd-tip"><b>${b.name}</b>${b.cond}<i>${on ? '獲得ずみ' : '未獲得'}</i></span>`;
+      ul.append(li);
+    }
+    $('#res-badge-count').textContent = `${got.length} / ${BADGES.length}`;
+  }
+
+  // ===== 結果の共有 =====
+  function resultText() {
+    const g = game, r = g.result;
+    const lines = [
+      `ハロウィン親指シフトで ${r.rank.rank}ランク「${r.rank.title}」になった！`,
+      `スコア ${r.score} ／ 正確率 ${(r.acc * 100).toFixed(1)}% ／ ${Math.round(r.cpm)}字/分`,
+    ];
+    if (g.catPlays) lines.push(`🐈 黒猫ダッシュ ${g.catPlays}回`);
+    lines.push(`🏅 バッジ ${store.get('nh-badges', []).length} / ${BADGES.length}`);
+    lines.push('#ハロウィン親指シフト');
+    if (/^https?:/.test(location.href)) lines.push(location.href);
+    return lines.join('\n');
+  }
+  function shareX() {
+    if (!game || !game.result) return;
+    window.open('https://x.com/intent/post?text=' + encodeURIComponent(resultText()), '_blank', 'noopener');
+  }
+  async function copyResult() {
+    if (!game || !game.result) return;
+    const text = resultText();
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // file:// などで Clipboard API が使えないとき
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.append(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    toast('結果をコピーしました');
   }
 
   // ===== 演出 =====
@@ -628,6 +701,9 @@
   $('#start-btn').addEventListener('click', startGame);
   $('#btn-retry').addEventListener('click', startGame);
   $('#btn-title').addEventListener('click', goTitle);
+  // フォーカスが残ると Enter で再度押されてしまうので外す
+  $('#btn-share-x').addEventListener('click', (e) => { shareX(); e.currentTarget.blur(); });
+  $('#btn-copy').addEventListener('click', (e) => { copyResult(); e.currentTarget.blur(); });
 
   // ===== 初期化 =====
   {

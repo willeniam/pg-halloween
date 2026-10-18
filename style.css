@@ -329,11 +329,45 @@ main { position: relative; z-index: 1; min-height: 100vh; display: flex; padding
 .res-stats div { padding: 10px; text-align: center; background: rgba(255, 255, 255, .05); border-radius: 12px; }
 .res-stats dt { font-size: 12px; color: var(--dim); }
 .res-stats dd { margin: 2px 0 0; font: 400 26px var(--logo); }
-.res-weak { margin-top: 16px; text-align: center; }
-.res-weak h3 { margin: 0 0 6px; font-size: 13px; color: var(--dim); }
-.res-weak ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-.res-weak li { padding: 4px 12px; border-radius: 999px; background: rgba(255, 61, 106, .15); border: 1px solid rgba(255, 61, 106, .5); font-size: 14px; }
-.res-weak li b { font-size: 18px; margin-right: 6px; }
+.res-sub { margin: 8px 0 0; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; font-size: 13px; }
+.res-sub div { display: flex; gap: 6px; align-items: baseline; }
+.res-sub dt { color: var(--dim); }
+.res-sub dd { margin: 0; font-weight: 800; }
+.res-badges { margin-top: 18px; text-align: center; }
+.res-badges h3 { margin: 0 0 8px; font-size: 13px; color: var(--dim); }
+.res-badges ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  position: relative; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 22px; cursor: default;
+  background: radial-gradient(circle at 40% 35%, #5a3a86, #2a1640 75%);
+  border: 2px solid var(--gold); box-shadow: 0 0 14px rgba(255, 207, 74, .35);
+}
+.badge.locked { border-color: var(--line); box-shadow: none; background: rgba(255, 255, 255, .04); }
+.badge.locked .bd-icon { filter: grayscale(1) brightness(.6); opacity: .45; }
+.badge.new { animation: badgein .7s cubic-bezier(.2, 1.6, .4, 1); }
+.badge.new::after {
+  content: "NEW"; position: absolute; top: -8px; right: -10px;
+  padding: 1px 5px; border-radius: 6px; background: var(--orange); color: #fff;
+  font: 800 9px/1.4 var(--round);
+}
+@keyframes badgein { from { transform: scale(0) rotate(-40deg); } }
+.bd-tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 220px; padding: 8px 12px; border-radius: 10px; z-index: 5;
+  background: #1a0d2e; border: 1px solid var(--line); box-shadow: 0 4px 18px rgba(0, 0, 0, .5);
+  font-size: 12px; line-height: 1.5; color: var(--dim); text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .15s;
+}
+.bd-tip b { display: block; font-size: 14px; color: var(--gold); }
+.badge.locked .bd-tip b { color: var(--ink); }
+.bd-tip i { display: block; font-style: normal; font-size: 11px; color: var(--violet); }
+.badge:hover .bd-tip { opacity: 1; }
+.res-share { margin-top: 10px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.res-share button {
+  padding: 7px 14px; border-radius: 10px; cursor: pointer;
+  background: transparent; border: 1px solid var(--line); color: var(--dim); font-size: 13px; font-weight: 700;
+}
+.res-share button:hover { border-color: var(--violet); color: var(--ink); }
 .res-btns { margin-top: 22px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .res-btns button {
   padding: 10px 18px; border-radius: 12px; cursor: pointer;
