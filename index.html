@@ -84,6 +84,7 @@
       <img class="title-ghost" src="assets/ghost_normal.png" alt="" onerror="this.remove()">
       <h1 class="title-logo"><span>ハロウィン</span>親指シフト</h1>
       <button id="start-btn" class="start-btn" type="button"><kbd>Enter</kbd> スタート</button>
+      <div><button id="tut-btn" class="tut-open-btn" type="button">親指シフトとは？ <kbd>H</kbd></button></div>
       <p id="title-best" class="title-best"></p>
       <div class="title-foot">
         <button id="thumb-btn" class="chip-btn" type="button">親指キー：<b id="thumb-name"></b> <kbd>T</kbd></button>
@@ -96,7 +97,7 @@
   <!-- 練習画面 -->
   <section id="screen-play" class="screen">
     <header class="play-head">
-      <div class="ph-stage"><b>ハロウィン単語</b></div>
+      <div class="ph-stage"><b id="ph-stage-name">ハロウィン単語</b></div>
       <div class="ph-progress"><span id="play-count"></span><div class="bar"><i id="play-bar"></i></div></div>
       <dl class="ph-stats">
         <div><dt>正確率</dt><dd id="stat-acc">100%</dd></div>
@@ -209,6 +210,36 @@
   <p class="cr-hint"><kbd>Space</kbd> / クリックでジャンプ ・ 曲が終わるまで逃げきれ！</p>
 </section>
 
+<!-- チュートリアル -->
+<div id="tut" hidden>
+  <svg class="tut-shade" aria-hidden="true">
+    <defs>
+      <mask id="tut-mask">
+        <rect width="100%" height="100%" fill="#fff"/>
+        <g id="tut-holes" fill="#000"></g>
+      </mask>
+    </defs>
+    <rect class="tut-dim" width="100%" height="100%" mask="url(#tut-mask)"/>
+  </svg>
+  <div id="tut-rings"></div>
+  <div id="tut-card" class="tut-card" role="dialog" aria-labelledby="tut-title">
+    <div class="tut-head">
+      <ol id="tut-chapters" class="tut-chapters"></ol>
+      <span id="tut-count" class="tut-count"></span>
+    </div>
+    <div class="tut-body">
+      <h2 id="tut-title" class="tut-title"></h2>
+      <div id="tut-text" class="tut-text"></div>
+      <p id="tut-status" class="tut-status"></p>
+    </div>
+    <div class="tut-btns">
+      <button id="tut-exit" type="button"><kbd>Esc</kbd> 終了</button>
+      <button id="tut-prev" type="button"><kbd>←</kbd> もどる</button>
+      <button id="tut-next" type="button"></button>
+    </div>
+  </div>
+</div>
+
 <div id="flash" class="flash"></div>
 <div id="fx-layer" class="fx-layer"></div>
 <div id="toast" class="toast"></div>
@@ -217,6 +248,7 @@
 
 <script src="js/nicola.js"></script>
 <script src="js/data.js"></script>
+<script src="js/tutorial.js"></script>
 <script src="js/catrun.js"></script>
 <script src="js/main.js"></script>
 </body>

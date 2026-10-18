@@ -11,6 +11,7 @@
   --line: rgba(180, 139, 255, .28);
   --left: #c39bff;
   --right: #ff9a4a;
+  --neon: #5ff4ff;
   --key: 58px;
   --gap: 6px;
   --u: calc(var(--key) + var(--gap));
@@ -154,6 +155,16 @@ main { position: relative; z-index: 1; min-height: 100vh; display: flex; padding
 }
 .chip-btn b { color: var(--gold); }
 .howto { color: var(--dim); font-size: 13px; margin-top: 14px; }
+.tut-open-btn {
+  margin-top: 18px; padding: 9px 24px; border-radius: 999px; cursor: pointer;
+  background: rgba(8, 28, 44, .6); border: 2px solid var(--neon); color: #dffcff;
+  font: 800 17px var(--round);
+  text-shadow: 0 0 8px rgba(95, 244, 255, .8);
+  box-shadow: 0 0 10px rgba(95, 244, 255, .5), inset 0 0 10px rgba(95, 244, 255, .2);
+  transition: box-shadow .15s;
+}
+.tut-open-btn:hover { box-shadow: 0 0 20px rgba(95, 244, 255, .8), inset 0 0 14px rgba(95, 244, 255, .35); }
+.tut-open-btn kbd { color: inherit; border-color: rgba(95, 244, 255, .5); text-shadow: none; }
 
 /* ===== 練習画面 ===== */
 .play-head {
@@ -463,6 +474,79 @@ body.cat-active main { filter: blur(2px) brightness(.6); }
 .cr-msg.show { animation: crmsg .35s cubic-bezier(.2, 1.6, .4, 1) forwards; }
 .cr-msg.crash { color: var(--miss); text-shadow: 0 0 30px rgba(255, 61, 106, .8), 0 5px 0 #3b1466; }
 @keyframes crmsg { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* ===== チュートリアル ===== */
+.tut-shade { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 6; pointer-events: none; }
+.tut-dim { fill: rgba(6, 3, 14, .62); }
+.tut-ring {
+  position: fixed; z-index: 7; pointer-events: none;
+  border: 2px solid var(--neon); border-radius: 12px;
+  box-shadow: 0 0 6px var(--neon), 0 0 18px rgba(95, 244, 255, .75), 0 0 38px rgba(95, 244, 255, .35), inset 0 0 12px rgba(95, 244, 255, .45);
+  animation: neon 1.8s ease-in-out infinite;
+}
+@keyframes neon {
+  50% { box-shadow: 0 0 4px var(--neon), 0 0 10px rgba(95, 244, 255, .5), 0 0 20px rgba(95, 244, 255, .2), inset 0 0 6px rgba(95, 244, 255, .3); }
+}
+/* 説明だけのステップは、水色の枠で囲むだけ（ちかちかさせない） */
+body.tut-explain .tut-ring { animation: none; }
+body.tut-explain .prompt-kana .ch.current::after { animation: none; }
+.tut-card {
+  position: fixed; left: 0; top: 0; z-index: 12;
+  width: min(500px, calc(100vw - 24px)); padding: 12px 18px 12px;
+  background: rgba(14, 10, 32, .96); border: 2px solid var(--neon); border-radius: 16px;
+  box-shadow: 0 0 18px rgba(95, 244, 255, .4), 0 10px 40px rgba(0, 0, 0, .6);
+  transition: transform .25s ease;
+}
+.tut-card.in .tut-body { animation: tutin .3s ease; }
+@keyframes tutin { from { opacity: 0; transform: translateY(6px); } }
+.tut-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tut-chapters { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.tut-chapters button {
+  min-width: 24px; padding: 2px 7px; border-radius: 99px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(95, 244, 255, .3); color: var(--dim);
+  font: 700 11px var(--round);
+}
+.tut-chapters .done button { color: #9feeff; border-color: rgba(95, 244, 255, .55); }
+.tut-chapters .cur button { background: var(--neon); border-color: var(--neon); color: #062028; font-weight: 800; }
+.tut-count { font-size: 11px; color: var(--dim); white-space: nowrap; }
+.tut-title { margin: 8px 0 6px; font: 400 22px var(--logo); color: #dffcff; text-shadow: 0 0 10px rgba(95, 244, 255, .6); }
+.tut-text { font-size: 15px; line-height: 1.7; }
+.tut-text b { color: var(--gold); }
+.tut-text small { color: var(--dim); font-size: 12px; }
+.tut-text ul { margin: 2px 0; padding-left: 1.2em; }
+.tut-text kbd { font-size: .8em; }
+.c-l { color: var(--left); font-weight: 800; }
+.c-r { color: var(--right); font-weight: 800; }
+.tut-text b.c-n { color: #fff; }
+.tut-key-demo { display: flex; align-items: center; gap: 18px; margin: 4px 0 8px; }
+.tut-key-demo .key { width: 84px; height: 86px; }
+.tut-key-demo .key .kn { font-size: 32px; bottom: 14px; }
+.tut-key-demo .key .kl, .tut-key-demo .key .kr { font-size: 18px; top: 5px; }
+.tut-key-demo .key .kl { left: 9px; }
+.tut-key-demo .key .kr { right: 9px; }
+.tut-key-demo .key .kc { font-size: 11px; }
+.tut-key-demo ul { list-style: none; margin: 0; padding: 0; }
+.tut-key-demo b { display: inline-block; width: 1.3em; font-size: 18px; }
+.tut-status { margin: 6px 0 0; min-height: 1.4em; font-size: 14px; font-weight: 800; }
+.tut-status:empty { display: none; }
+.tut-status.wait { color: var(--neon); animation: tutwait 1.4s ease-in-out infinite; }
+.tut-status.ok { color: var(--gold); }
+@keyframes tutwait { 50% { opacity: .45; } }
+.tut-btns { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
+.tut-btns button {
+  padding: 6px 14px; border-radius: 10px; cursor: pointer;
+  background: rgba(255, 255, 255, .06); border: 1px solid var(--line); color: var(--ink);
+  font-size: 13px; font-weight: 700;
+}
+.tut-btns button:disabled { opacity: .3; cursor: default; }
+#tut-exit { margin-right: auto; color: var(--dim); }
+#tut-next { border-color: var(--neon); color: #dffcff; }
+/* 進めるときは、打つキーと同じように枠のまわりを光らせて点滅させる */
+#tut-next.ready { border: 2px solid var(--neon); animation: nextglow 1s ease-in-out infinite; }
+@keyframes nextglow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(95, 244, 255, .5), 0 0 18px rgba(95, 244, 255, .7); }
+  50% { box-shadow: 0 0 0 0 rgba(95, 244, 255, 0), 0 0 4px rgba(95, 244, 255, .2); }
+}
 
 /* 画面が狭いとき */
 @media (max-width: 900px) {

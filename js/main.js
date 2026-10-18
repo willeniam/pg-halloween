@@ -150,6 +150,7 @@
   }
   function goTitle() {
     if (CatRun.active()) { CatRun.abort(); syncBgm(); }
+    endTutorial();
     game = null;
     resetInput();
     renderTitle();
@@ -167,6 +168,7 @@
         const [n, l, rr] = NICOLA[code];
         const k = document.createElement('div');
         k.className = 'key';
+        k.dataset.code = code;
         if (code === 'KeyF' || code === 'KeyJ') k.classList.add('homing');
         k.innerHTML = `<span class="kl">${l}</span><span class="kr">${rr}</span><span class="kn">${n}</span><span class="kc">${KEY_LABEL(code)}</span>`;
         keyEls[code] = k;
@@ -278,15 +280,20 @@
     return shuffle([...WORDS]).slice(0, QUESTION_COUNT).map((o) => ({ display: o.d, kana: o.k }));
   }
 
-  function startGame() {
-    audioCtx();
-    syncBgm();
-    game = {
-      questions: buildQuestions(), qi: 0, pos: 0,
+  function newGame(questions) {
+    return {
+      questions, qi: 0, pos: 0,
       correct: 0, miss: 0, combo: 0, maxCombo: 0,
       startTime: null, endTime: null, missed: new Set(), finished: false,
-      catLock: false, catCool: CAT_COOLDOWN, catPlays: 0, result: null,
+      catLock: false, catCool: CAT_COOLDOWN, catPlays: 0, result: null, tutorial: false,
     };
+  }
+
+  function startGame() {
+    endTutorial();
+    audioCtx();
+    syncBgm();
+    game = newGame(buildQuestions());
     resetInput();
     show('play');
     renderQuestion();
@@ -362,6 +369,7 @@
   function handleKana(ch, code) {
     flashKey(code);
     if (screen !== 'play' || !game || game.finished || game.catLock) return;
+    if (game.tutorial && !tutPracticing()) return;
     const q = curQ();
     const target = q.kana[game.pos];
     if (game.startTime === null) game.startTime = now();
@@ -389,7 +397,11 @@
         game.qi++;
         game.pos = 0;
         game.missed = new Set();
-        if (game.qi >= game.questions.length) { finish(); return; }
+        if (game.qi >= game.questions.length) {
+          if (game.tutorial) tutPracticeDone();
+          else finish();
+          return;
+        }
         if (catGo) startCat();
         else renderQuestion();
       } else {
@@ -548,6 +560,201 @@
     $('#res-badge-count').textContent = `${got.length} / ${BADGES.length}`;
   }
 
+  // ===== チュートリアル =====
+  let tut = null;   // { i: ステップ番号, done: 練習を打ち終えたか, raf, placed }
+  const tutCard = $('#tut-card');
+  const tutHoles = $('#tut-holes');
+  const tutRings = $('#tut-rings');
+  const TUT_PAD = 6;
+
+  const tutPracticing = () => !!tut && !!TUTORIAL_STEPS[tut.i].practice;
+
+  function startTutorial() {
+    audioCtx();
+    syncBgm();
+    tut = { i: 0, done: false, raf: 0, placed: false };
+    $('#ph-stage-name').textContent = 'チュートリアル';
+    $('#kb-wrap').classList.remove('hide');
+    show('play');
+    $('#tut').hidden = false;
+    tutStep(0);
+    tutLoop();
+  }
+  function endTutorial() {
+    if (!tut) return;
+    cancelAnimationFrame(tut.raf);
+    tut = null;
+    game = null;
+    $('#tut').hidden = true;
+    document.body.classList.remove('tut-explain');
+    $('#ph-stage-name').textContent = 'ハロウィン単語';
+    applyKb();
+  }
+
+  function renderBlank() {
+    $('#prompt-display').textContent = '';
+    $('#prompt-kana').textContent = '';
+    $('#next-char').textContent = '';
+    $('#next-char').className = 'next-char';
+    $('#next-hint').textContent = '';
+    $('#next-after').textContent = '';
+    $('#play-count').textContent = '';
+    $('#play-bar').style.width = '0%';
+    highlightKey(null);
+  }
+
+  function tutStep(i) {
+    const s = TUTORIAL_STEPS[i];
+    tut.i = i;
+    tut.done = false;
+    resetInput();
+    if (s.words) {
+      game = newGame(s.words.map((w) => ({ display: w.d, kana: w.k })));
+      game.tutorial = true;
+      game.catCool = Infinity;  // チュートリアル中は黒猫ダッシュなし
+      renderQuestion();
+      updateStats();
+      if (!s.practice) highlightKey(null);
+    } else {
+      game = null;
+      renderBlank();
+    }
+    document.body.classList.toggle('tut-explain', !s.practice);
+    [...$('#tut-chapters').children].forEach((li, ci) => {
+      li.className = ci === s.ch ? 'cur' : ci < s.ch ? 'done' : '';
+      li.firstChild.textContent = ci === s.ch ? `${ci + 1}. ${TUTORIAL_CHAPTERS[ci]}` : ci + 1;
+    });
+    $('#tut-count').textContent = `${i + 1} / ${TUTORIAL_STEPS.length}`;
+    $('#tut-title').textContent = s.title;
+    const p = preset();
+    $('#tut-text').innerHTML = s.text.replace(/\{L\}/g, p.lLabel).replace(/\{R\}/g, p.rLabel);
+    $('#tut-prev').disabled = i === 0;
+    renderTutStatus();
+    retrigger(tutCard, 'in');
+  }
+  function renderTutStatus() {
+    const s = TUTORIAL_STEPS[tut.i];
+    const last = tut.i === TUTORIAL_STEPS.length - 1;
+    const st = $('#tut-status');
+    const next = $('#tut-next');
+    if (s.practice && !tut.done) {
+      st.textContent = '⌨ 実際に打ってみよう';
+      st.className = 'tut-status wait';
+      next.textContent = 'とばす';
+      next.classList.remove('ready');
+    } else {
+      st.textContent = s.practice ? 'できた！' : '';
+      st.className = 'tut-status' + (s.practice ? ' ok' : '');
+      next.innerHTML = `${last ? '本番スタート' : 'つぎへ'} <kbd>Enter</kbd>`;
+      // 進めるときは「つぎへ」を点滅させて、押すのはこっちだと分かるようにする
+      next.classList.add('ready');
+    }
+  }
+  function tutPracticeDone() {
+    game.finished = true;
+    highlightKey(null);
+    $('#play-bar').style.width = '100%';
+    tut.done = true;
+    renderTutStatus();
+    ghostSay('できた！');
+  }
+  // skip
+  function tutNext(skip) {
+    if (tutPracticing() && !tut.done && !skip) return;
+    if (tut.i === TUTORIAL_STEPS.length - 1) { startGame(); return; }
+    tutStep(tut.i + 1);
+  }
+  function tutPrev() {
+    if (tut.i > 0) tutStep(tut.i - 1);
+  }
+
+  function tutRects(sels) {
+    const out = [];
+    for (const sel of sels) {
+      document.querySelectorAll(sel).forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height) out.push(r);
+      });
+    }
+    return out;
+  }
+  function syncChildren(parent, n, make) {
+    while (parent.children.length < n) parent.append(make());
+    while (parent.children.length > n) parent.lastElementChild.remove();
+  }
+  function tutLayout() {
+    const s = TUTORIAL_STEPS[tut.i];
+    const rects = tutRects(s.target);
+    syncChildren(tutHoles, rects.length, () => document.createElementNS('http://www.w3.org/2000/svg', 'rect'));
+    syncChildren(tutRings, rects.length, () => {
+      const d = document.createElement('div');
+      d.className = 'tut-ring';
+      return d;
+    });
+    rects.forEach((r, k) => {
+      const x = r.left - TUT_PAD, y = r.top - TUT_PAD, w = r.width + TUT_PAD * 2, h = r.height + TUT_PAD * 2;
+      const hole = tutHoles.children[k];
+      hole.setAttribute('x', x);
+      hole.setAttribute('y', y);
+      hole.setAttribute('width', w);
+      hole.setAttribute('height', h);
+      hole.setAttribute('rx', 12);
+      tutRings.children[k].style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+    });
+    placeTutCard(s.anchor ? tutRects([s.anchor]) : rects, s.place || 'below');
+  }
+  function placeTutCard(rects, place) {
+    const vw = innerWidth, vh = innerHeight, M = 12, G = 16;
+    const w = tutCard.offsetWidth, h = tutCard.offsetHeight;
+    let x = (vw - w) / 2, y = (vh - h) / 2;
+    if (rects.length) {
+      const top = Math.min(...rects.map((r) => r.top)) - TUT_PAD;
+      const bottom = Math.max(...rects.map((r) => r.bottom)) + TUT_PAD;
+      const left = Math.min(...rects.map((r) => r.left));
+      const right = Math.max(...rects.map((r) => r.right));
+      x = (left + right) / 2 - w / 2;
+      const fitsBelow = h <= vh - bottom - G - M;
+      const fitsAbove = h <= top - G - M;
+      if (place === 'above') y = fitsAbove ? top - G - h : fitsBelow ? bottom + G : M;
+      else y = fitsBelow ? bottom + G : fitsAbove ? top - G - h : vh - M - h;
+    }
+    x = Math.max(M, Math.min(x, vw - w - M));
+    y = Math.max(M, Math.min(y, vh - h - M));
+
+    tutCard.style.transition = tut.placed ? '' : 'none';
+    tut.placed = true;
+    tutCard.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  }
+  function tutLoop() {
+    if (!tut) return;
+    tutLayout();
+    tut.raf = requestAnimationFrame(tutLoop);
+  }
+
+  function tutKey(e) {
+    if (e.code === 'Escape') { goTitle(); return; }
+    if (e.code === 'Enter' || e.code === 'ArrowRight') { e.preventDefault(); if (!e.repeat) tutNext(false); return; }
+    if (e.code === 'ArrowLeft') { e.preventDefault(); if (!e.repeat) tutPrev(); return; }
+    if (e.code === 'Tab') { e.preventDefault(); return; }
+    if (tutPracticing()) onPlayKeyDown(e);
+  }
+
+  TUTORIAL_CHAPTERS.forEach((name, ci) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.title = name;
+    b.addEventListener('click', (e) => {
+      tutStep(TUTORIAL_STEPS.findIndex((s) => s.ch === ci));
+      e.currentTarget.blur();
+    });
+    li.append(b);
+    $('#tut-chapters').append(li);
+  });
+  $('#tut-next').addEventListener('click', (e) => { tutNext(true); e.currentTarget.blur(); });
+  $('#tut-prev').addEventListener('click', (e) => { tutPrev(); e.currentTarget.blur(); });
+  $('#tut-exit').addEventListener('click', (e) => { goTitle(); e.currentTarget.blur(); });
+
   // ===== 結果の共有 =====
   function resultText() {
     const g = game, r = g.result;
@@ -653,11 +860,13 @@
   function titleKey(e) {
     switch (e.code) {
       case 'Enter': case 'Space': e.preventDefault(); startGame(); break;
+      case 'KeyH': startTutorial(); break;
       case 'KeyT': cyclePreset(); break;
       case 'KeyM': toggleBgm(); break;
     }
   }
   function playKey(e) {
+    if (tut) { tutKey(e); return; }
     if (e.code === 'Escape') { goTitle(); return; }
     if (e.code === 'Tab') {
       e.preventDefault();
@@ -699,6 +908,7 @@
   $('#thumb-btn').addEventListener('click', (e) => { cyclePreset(); e.currentTarget.blur(); });
   $('#bgm-btn').addEventListener('click', (e) => { audioCtx(); toggleBgm(); e.currentTarget.blur(); });
   $('#start-btn').addEventListener('click', startGame);
+  $('#tut-btn').addEventListener('click', (e) => { startTutorial(); e.currentTarget.blur(); });
   $('#btn-retry').addEventListener('click', startGame);
   $('#btn-title').addEventListener('click', goTitle);
   // フォーカスが残ると Enter で再度押されてしまうので外す
