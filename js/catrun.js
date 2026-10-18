@@ -20,7 +20,7 @@ const CatRun = (() => {
   const FALLBACK_MS = 60000; // 音楽が再生できないときの制限時間
   const BUFFER_MS = 120;   // 着地直前の入力を覚えておく時間
 
-  let el, cv, ctx, scoreEl, barEl, msgEl;
+  let el, cv, ctx, scoreEl, barEl, msgEl, titleEl, hintEl;
   let st = null;
   let scale = 1, viewW = 800;
 
@@ -33,6 +33,8 @@ const CatRun = (() => {
     scoreEl = document.getElementById('cr-score');
     barEl = document.getElementById('cr-bar');
     msgEl = document.getElementById('cr-msg');
+    titleEl = document.getElementById('cr-title');
+    hintEl = document.getElementById('cr-hint');
     el.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
     el.addEventListener('pointerup', release);
     el.addEventListener('pointercancel', release);
@@ -75,9 +77,12 @@ const CatRun = (() => {
     el.hidden = false;
     document.body.classList.add('cat-active');
     resize();
+    // 画面はほうきフライトと共用なので、見出しと説明を毎回書き直す
+    titleEl.textContent = '黒猫ダッシュ！';
+    hintEl.innerHTML = '<kbd>Space</kbd> / クリックでジャンプ ・ 曲が終わるまで逃げきれ！';
     scoreEl.textContent = '0';
     barEl.style.width = '0%';
-    say('黒猫があらわれた！<small>スペース / クリックでジャンプ</small>', 'intro');
+    say('黒猫があらわれた！<span class="cr-key">Space</span><small>/ クリックでジャンプ</small>', 'intro');
 
     const m = opts.music;
     if (m) {

@@ -26,6 +26,12 @@
     },
   };
 
+  // ===== 入力方式（親指シフト ／ モールス信号） =====
+  // MODES は下のバッジ定義のあとで作る
+  let mode = store.get('nh-mode', 'nicola');
+  const M = () => MODES[mode];
+  const isMorse = () => mode === 'morse';
+
   // ===== 親指キー設定 =====
   const THUMB_PRESETS = [
     { name: '無変換 ／ 変換・スペース', left: ['NonConvert'], right: ['Convert', 'Space'], lLabel: '無変換', rLabel: '変換 / スペース' },
@@ -65,6 +71,34 @@
     else if (name === 'result') [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.07, i * 0.12));
     else if (name === 'jump') { tone(520, 0.1, 'square', 0.025); tone(780, 0.08, 'square', 0.02, 0.04); }
     else if (name === 'crash') { tone(220, 0.25, 'sawtooth', 0.06); tone(110, 0.35, 'sawtooth', 0.05, 0.08); }
+    else if (name === 'fly') { tone(330, 0.12, 'triangle', 0.025); tone(495, 0.1, 'triangle', 0.02, 0.03); }
+  }
+  // モールスの電鍵音：押している間だけ鳴らす
+  let beepNode = null;
+  function beepStart() {
+    const ctx = audioCtx();
+    if (!ctx) return;
+    beepStop();
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 700;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.07, t + 0.006);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    beepNode = { o, g };
+  }
+  function beepStop() {
+    if (!beepNode) return;
+    const { o, g } = beepNode;
+    const t = actx.currentTime;
+    beepNode = null;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    g.gain.linearRampToValueAtTime(0, t + 0.008);
+    o.stop(t + 0.02);
   }
 
   const bgm = $('#bgm');
@@ -115,13 +149,29 @@
   let screen = 'title';
   function show(name) {
     screen = name;
+    document.body.dataset.screen = name;
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
   }
 
   // ===== タイトル =====
   function renderTitle() {
-    const best = store.get('nh-best-words', null);
+    const best = store.get(M().bestKey, null);
     $('#title-best').textContent = best ? `ベスト：${best.rank}ランク（${best.score}点）` : '';
+  }
+  function applyMode() {
+    const m = M();
+    document.body.classList.toggle('mode-morse', isMorse());
+    document.title = m.appTitle;
+    $('#mode-label').textContent = isMorse() ? '親指シフト入力に変更する' : 'モールス信号入力に変更する';
+    $('#ph-stage-name').textContent = m.stageName;
+    renderTitle();
+  }
+  function toggleMode() {
+    if (screen !== 'title') return;
+    mode = isMorse() ? 'nicola' : 'morse';
+    store.set('nh-mode', mode);
+    applyMode();
+    toast(`${M().name}モードにしました`);
   }
   function renderThumbLabels() {
     const p = preset();
@@ -135,7 +185,8 @@
     renderThumbLabels();
   }
   function goTitle() {
-    if (CatRun.active()) { CatRun.abort(); syncBgm(); }
+    const mg = activeMini();
+    if (mg) { mg.abort(); syncBgm(); }
     endTutorial();
     game = null;
     resetInput();
@@ -168,8 +219,12 @@
     kb.append(t);
   }
   function highlightKey(ch) {
-    document.querySelectorAll('.key.target').forEach((k) => k.classList.remove('target'));
+    document.querySelectorAll('.key.target, .mc-cell.target').forEach((k) => k.classList.remove('target'));
     document.querySelectorAll('.key .hit').forEach((k) => k.classList.remove('hit'));
+    if (ch && isMorse()) {
+      if (chartEls[ch]) chartEls[ch].classList.add('target');
+      return;
+    }
     const k = ch && KANA_TO_KEY[ch];
     if (!k) return;
     const el = keyEls[k.code];
@@ -182,6 +237,25 @@
     if (!el) return;
     retrigger(el, 'pressed');
     setTimeout(() => el.classList.remove('pressed'), 110);
+  }
+  // モールス符号表と電鍵
+  const chartEls = {};
+  function buildMorsePad() {
+    const chart = $('#morse-chart');
+    for (const [ch, code] of Object.entries(MORSE)) {
+      const c = document.createElement('div');
+      c.className = 'mc-cell';
+      c.dataset.ch = ch;
+      c.innerHTML = `<b>${ch}</b>${morseHtml(code)}`;
+      chartEls[ch] = c;
+      chart.append(c);
+    }
+    const key = $('#morse-key');
+    key.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (screen === 'play') morsePress();
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) key.addEventListener(ev, morseRelease);
   }
   let showKb = store.get('nh-kb', true);
   function applyKb() { $('#kb-wrap').classList.toggle('hide', !showKb); }
@@ -223,8 +297,17 @@
       const el = $('#thumb-' + side);
       if (el) el.classList.remove('down');
     }
+    resetMorse();
   }
   function onPlayKeyDown(e) {
+    if (isMorse()) morseKeyDown(e);
+    else nicolaKeyDown(e);
+  }
+  function onPlayKeyUp(e) {
+    if (isMorse()) morseKeyUp(e);
+    else nicolaKeyUp(e);
+  }
+  function nicolaKeyDown(e) {
     const side = thumbSideOf(e.code);
     if (side) {
       e.preventDefault();
@@ -248,7 +331,7 @@
     if (held) { emit(e.code, held); return; }
     pending = { code: e.code, timer: setTimeout(flushPending, SIM_MS) };
   }
-  function onPlayKeyUp(e) {
+  function nicolaKeyUp(e) {
     const side = thumbSideOf(e.code);
     if (side) {
       e.preventDefault();
@@ -259,11 +342,89 @@
     if (pending && pending.code === e.code) flushPending();
   }
 
+  // ===== モールス入力エンジン =====
+  // Space を押していた長さで短点・長点を決める。お題の文字は分かっているので、
+  // 符号がそろった時点で確定し、食い違った時点でミスにする（文字間の「間」は見ない）。
+  const GAUGE_MS = MORSE_DOT_MAX_MS * 3;  // ゲージの端（短点ゾーンが左 1/3）
+  const morse = { down: false, at: 0, buf: '', raf: 0 };
+  const morseKeyEl = $('#morse-key');
+  const gaugeEl = $('#morse-gauge');
+
+  function morsePress() {
+    if (morse.down) return;
+    if (game && (game.catLock || game.finished)) return;
+    morse.down = true;
+    morse.at = now();
+    beepStart();
+    morseKeyEl.classList.add('down');
+    morseKeyEl.classList.remove('dash');
+    cancelAnimationFrame(morse.raf);
+    morseGauge();
+  }
+  function morseGauge() {
+    const ms = now() - morse.at;
+    gaugeEl.style.width = Math.min(100, (ms / GAUGE_MS) * 100) + '%';
+    morseKeyEl.classList.toggle('dash', ms >= MORSE_DOT_MAX_MS);
+    if (morse.down) morse.raf = requestAnimationFrame(morseGauge);
+  }
+  function morseRelease() {
+    if (!morse.down) return;
+    morseGauge();
+    morse.down = false;
+    cancelAnimationFrame(morse.raf);
+    beepStop();
+    morseKeyEl.classList.remove('down');
+    morseSymbol(now() - morse.at < MORSE_DOT_MAX_MS ? '.' : '-');
+  }
+  function morseSymbol(sym) {
+    if (screen !== 'play' || !game || game.finished || game.catLock) return;
+    if (game.tutorial && !tutPracticing()) return;
+    if (game.startTime === null) game.startTime = morse.at;
+    const target = curQ().kana[game.pos];
+    const code = MORSE[target];
+    morse.buf += sym;
+    if (morse.buf === code) {
+      morse.buf = '';
+      handleKana(target, null);
+    } else if (!code.startsWith(morse.buf)) {
+      const typed = morse.buf;
+      morse.buf = '';
+      handleKana(morseText(typed), null);
+    } else {
+      renderMorseHint();
+    }
+  }
+  function renderMorseHint() {
+    const q = game && curQ();
+    const target = q && q.kana[game.pos];
+    $('#next-hint').innerHTML = target ? morseHtml(MORSE[target], morse.buf.length) : '';
+  }
+  function resetMorse() {
+    if (morse.down) beepStop();
+    cancelAnimationFrame(morse.raf);
+    morse.down = false;
+    morse.buf = '';
+    morseKeyEl.classList.remove('down', 'dash');
+    gaugeEl.style.width = '0%';
+  }
+  function morseKeyDown(e) {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    if (e.repeat) return;
+    morsePress();
+  }
+  function morseKeyUp(e) {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    morseRelease();
+  }
+
   // ===== ゲーム =====
   let game = null;
 
   function buildQuestions() {
-    return shuffle([...WORDS]).slice(0, QUESTION_COUNT).map((o) => ({ display: o.d, kana: o.k }));
+    const m = M();
+    return shuffle([...m.words]).slice(0, m.count).map((o) => ({ display: o.d, kana: o.k }));
   }
 
   function newGame(questions) {
@@ -322,11 +483,16 @@
       spans[i].classList.toggle('missed', game.missed.has(i));
     }
     const target = q.kana[game.pos];
-    const k = KANA_TO_KEY[target];
     const nc = $('#next-char');
     nc.textContent = target;
-    nc.className = 'next-char' + (k && k.shift !== 'none' ? ' sh-' + k.shift : '');
-    $('#next-hint').innerHTML = hintHtml(target);
+    if (isMorse()) {
+      nc.className = 'next-char';
+      renderMorseHint();
+    } else {
+      const k = KANA_TO_KEY[target];
+      nc.className = 'next-char' + (k && k.shift !== 'none' ? ' sh-' + k.shift : '');
+      $('#next-hint').innerHTML = hintHtml(target);
+    }
     const after = q.kana[game.pos + 1];
     $('#next-after').textContent = after ? `そのつぎ：${after}` : game.qi + 1 < game.questions.length ? 'つぎのお題へ' : 'ラスト！';
     highlightKey(target);
@@ -410,9 +576,11 @@
     updateStats();
   }
 
-  // ===== 黒猫ダッシュ（ノーミスで単語を打つと、次の単語の前に割り込む） =====
+  // ===== ミニゲーム（ノーミスで単語を打つと、次の単語の前に割り込む） =====
+  // 親指シフトは黒猫ダッシュ（CatRun）、モールスはほうきフライト（WitchFly）
   const CAT_CHANCE = 1;     // ノーミスのとき割り込む確率
   const CAT_COOLDOWN = 0;   // 一度割り込んだら、次の判定まで最低この語数あける
+  const activeMini = () => [CatRun, WitchFly].find((m) => m.active());
 
   function startCat() {
     const g = game;
@@ -425,12 +593,14 @@
     setTimeout(() => {
       if (game !== g || screen !== 'play') return;
       bgm.pause();
+      resetInput();  // 待っている間に押し始めた電鍵の音を止める
       const p = preset();
-      CatRun.start({
+      const m = M();
+      m.mini.start({
         music: catBgm.error ? null : catBgm,
         muted: !bgmOn,  // BGM OFF でも曲の長さで終わるよう、無音で再生する
         sound: se,
-        jumpCodes: [...p.left, ...p.right],
+        jumpCodes: isMorse() ? [] : [...p.left, ...p.right],
         onEnd(r) {
           if (game !== g) return;
           g.catPlays++;
@@ -442,7 +612,7 @@
           syncBgm();
           renderQuestion();
           updateStats();
-          ghostSay(r.cleared ? `逃げきった！ ${r.meters}m` : 'おかえり！');
+          ghostSay(r.cleared ? `${m.miniClear} ${r.meters}m` : 'おかえり！');
         },
       });
     }, 450);
@@ -458,10 +628,11 @@
 
     const { acc, cpm, min } = calc();
     const score = Math.round(cpm * acc * acc);
-    const rank = RANKS.find((r) => score >= r.min && acc >= r.acc) || RANKS[RANKS.length - 1];
-    const prev = store.get('nh-best-words', null);
+    const m = M();
+    const rank = m.ranks.find((r) => score >= r.min && acc >= r.acc) || m.ranks[m.ranks.length - 1];
+    const prev = store.get(m.bestKey, null);
     const isBest = !prev || score > prev.score;
-    if (isBest) store.set('nh-best-words', { rank: rank.rank, score });
+    if (isBest) store.set(m.bestKey, { rank: rank.rank, score });
 
     const rk = $('#res-rank');
     rk.textContent = rank.rank;
@@ -486,7 +657,7 @@
     st.games++;
     if (game.miss === 0) st.perfectGames++;
     if (rank.rank === 'S') st.sRanks++;
-    store.set('nh-stats', st);
+    store.set(m.statsKey, st);
     renderBadges(st);
 
     const g = game;
@@ -502,7 +673,9 @@
   }
 
   // ===== バッジ =====
+  // ミニゲームの記録は、どちらのモードも catPlays などの同じ名前で、モードごとに別の場所へ保存する
   const CAT_MAX = QUESTION_COUNT - 1;
+  const FLY_MAX = MORSE_QUESTION_COUNT - 1;
   const BADGES = [
     { id: 'cat1', icon: '🐈', name: 'ハロウィンの新人', cond: '黒猫ダッシュを初めてプレイ', ok: (s) => s.catPlays >= 1 },
     { id: 'cat5', icon: '🐾', name: '黒猫となかよし', cond: '黒猫ダッシュを合計5回プレイ', ok: (s) => s.catPlays >= 5 },
@@ -515,10 +688,41 @@
     { id: 'nomiss', icon: '✨', name: '天才魔女', cond: 'ノーミスで最後までプレイ', ok: (s) => s.perfectGames >= 1 },
     { id: 'rankS', icon: '👑', name: '大魔女', cond: 'Sランクをとる', ok: (s) => s.sRanks >= 1 },
   ];
+  const MORSE_BADGES = [
+    { id: 'fly1', icon: '🧹', name: '見習い魔女', cond: 'ほうきフライトを初めてプレイ', ok: (s) => s.catPlays >= 1 },
+    { id: 'fly5', icon: '🦉', name: 'ほうき乗りの常連', cond: 'ほうきフライトを合計5回プレイ', ok: (s) => s.catPlays >= 5 },
+    { id: 'fly7', icon: '🎃', name: 'ほうきまみれ', cond: `1回のゲームでほうきフライトを${FLY_MAX}回（最大）プレイ`, ok: (s) => s.catMaxInGame >= FLY_MAX },
+    { id: 'clear1', icon: '🌟', name: '夜空の生還者', cond: 'ほうきフライトを初めてクリア', ok: (s) => s.catClears >= 1 },
+    { id: 'clear5', icon: '🦇', name: '空の名人', cond: 'ほうきフライトを合計5回クリア', ok: (s) => s.catClears >= 5 },
+    { id: 'm1000', icon: '☁️', name: '夜空のおさんぽ', cond: 'ほうきフライトで合計1000m飛ぶ', ok: (s) => s.catMeters >= 1000 },
+    { id: 'm10000', icon: '🌕', name: '月まで一直線', cond: 'ほうきフライトで合計10000m飛ぶ', ok: (s) => s.catMeters >= 10000 },
+    { id: 'game1', icon: '👻', name: 'はじめの一歩', cond: 'ゲームを最後までプレイ', ok: (s) => s.games >= 1 },
+    { id: 'nomiss', icon: '📡', name: '天才通信士', cond: 'ノーミスで最後までプレイ', ok: (s) => s.perfectGames >= 1 },
+    { id: 'rankS', icon: '👑', name: '大魔女', cond: 'Sランクをとる', ok: (s) => s.sRanks >= 1 },
+  ];
+
+  const MODES = {
+    nicola: {
+      name: '親指シフト', appTitle: 'ハロウィン親指シフト', stageName: 'ハロウィン単語',
+      words: WORDS, count: QUESTION_COUNT, ranks: RANKS,
+      bestKey: 'nh-best-words', statsKey: 'nh-stats', badgesKey: 'nh-badges', badges: BADGES,
+      mini: CatRun, miniName: '黒猫ダッシュ', miniIcon: '🐈', miniClear: '逃げきった！',
+      chapters: TUTORIAL_CHAPTERS, steps: TUTORIAL_STEPS,
+    },
+    morse: {
+      name: 'モールス信号', appTitle: 'ハロウィンモールス信号', stageName: 'ハロウィン英単語',
+      words: MORSE_WORDS, count: MORSE_QUESTION_COUNT, ranks: MORSE_RANKS,
+      bestKey: 'nh-best-morse', statsKey: 'nh-stats-morse', badgesKey: 'nh-badges-morse', badges: MORSE_BADGES,
+      mini: WitchFly, miniName: 'ほうきフライト', miniIcon: '🧹', miniClear: '飛びきった！',
+      chapters: MORSE_TUTORIAL_CHAPTERS, steps: MORSE_TUTORIAL_STEPS,
+    },
+  };
+  if (!MODES[mode]) mode = 'nicola';
+
   function loadStats() {
     return {
       catPlays: 0, catClears: 0, catMeters: 0, catMaxInGame: 0, games: 0, perfectGames: 0, sRanks: 0,
-      ...store.get('nh-stats', {}),
+      ...store.get(M().statsKey, {}),
     };
   }
   function recordCat(r, playsThisGame) {
@@ -527,15 +731,16 @@
     if (r.cleared) st.catClears++;
     st.catMeters += r.meters;
     st.catMaxInGame = Math.max(st.catMaxInGame, playsThisGame);
-    store.set('nh-stats', st);
+    store.set(M().statsKey, st);
   }
   function renderBadges(st) {
-    const had = new Set(store.get('nh-badges', []));
-    const got = BADGES.filter((b) => b.ok(st)).map((b) => b.id);
-    store.set('nh-badges', got);
+    const m = M();
+    const had = new Set(store.get(m.badgesKey, []));
+    const got = m.badges.filter((b) => b.ok(st)).map((b) => b.id);
+    store.set(m.badgesKey, got);
     const ul = $('#res-badges');
     ul.innerHTML = '';
-    for (const b of BADGES) {
+    for (const b of m.badges) {
       const on = got.includes(b.id);
       const li = document.createElement('li');
       li.className = 'badge' + (on ? '' : ' locked') + (on && !had.has(b.id) ? ' new' : '');
@@ -543,7 +748,7 @@
         + `<span class="bd-tip"><b>${b.name}</b>${b.cond}<i>${on ? '獲得ずみ' : '未獲得'}</i></span>`;
       ul.append(li);
     }
-    $('#res-badge-count').textContent = `${got.length} / ${BADGES.length}`;
+    $('#res-badge-count').textContent = `${got.length} / ${m.badges.length}`;
   }
 
   // ===== チュートリアル =====
@@ -553,11 +758,13 @@
   const tutRings = $('#tut-rings');
   const TUT_PAD = 6;
 
-  const tutPracticing = () => !!tut && !!TUTORIAL_STEPS[tut.i].practice;
+  const tutSteps = () => M().steps;
+  const tutPracticing = () => !!tut && !!tutSteps()[tut.i].practice;
 
   function startTutorial() {
     audioCtx();
     syncBgm();
+    buildTutChapters();
     tut = { i: 0, done: false, raf: 0, placed: false };
     $('#ph-stage-name').textContent = 'チュートリアル';
     $('#kb-wrap').classList.remove('hide');
@@ -573,7 +780,7 @@
     game = null;
     $('#tut').hidden = true;
     document.body.classList.remove('tut-explain');
-    $('#ph-stage-name').textContent = 'ハロウィン単語';
+    $('#ph-stage-name').textContent = M().stageName;
     applyKb();
   }
 
@@ -590,7 +797,7 @@
   }
 
   function tutStep(i) {
-    const s = TUTORIAL_STEPS[i];
+    const s = tutSteps()[i];
     tut.i = i;
     tut.done = false;
     resetInput();
@@ -608,9 +815,9 @@
     document.body.classList.toggle('tut-explain', !s.practice);
     [...$('#tut-chapters').children].forEach((li, ci) => {
       li.className = ci === s.ch ? 'cur' : ci < s.ch ? 'done' : '';
-      li.firstChild.textContent = ci === s.ch ? `${ci + 1}. ${TUTORIAL_CHAPTERS[ci]}` : ci + 1;
+      li.firstChild.textContent = ci === s.ch ? `${ci + 1}. ${M().chapters[ci]}` : ci + 1;
     });
-    $('#tut-count').textContent = `${i + 1} / ${TUTORIAL_STEPS.length}`;
+    $('#tut-count').textContent = `${i + 1} / ${tutSteps().length}`;
     $('#tut-title').textContent = s.title;
     const p = preset();
     $('#tut-text').innerHTML = s.text.replace(/\{L\}/g, p.lLabel).replace(/\{R\}/g, p.rLabel);
@@ -619,8 +826,8 @@
     retrigger(tutCard, 'in');
   }
   function renderTutStatus() {
-    const s = TUTORIAL_STEPS[tut.i];
-    const last = tut.i === TUTORIAL_STEPS.length - 1;
+    const s = tutSteps()[tut.i];
+    const last = tut.i === tutSteps().length - 1;
     const st = $('#tut-status');
     const next = $('#tut-next');
     if (s.practice && !tut.done) {
@@ -647,7 +854,7 @@
   // skip
   function tutNext(skip) {
     if (tutPracticing() && !tut.done && !skip) return;
-    if (tut.i === TUTORIAL_STEPS.length - 1) { startGame(); return; }
+    if (tut.i === tutSteps().length - 1) { startGame(); return; }
     tutStep(tut.i + 1);
   }
   function tutPrev() {
@@ -669,7 +876,7 @@
     while (parent.children.length > n) parent.lastElementChild.remove();
   }
   function tutLayout() {
-    const s = TUTORIAL_STEPS[tut.i];
+    const s = tutSteps()[tut.i];
     const rects = tutRects(s.target);
     syncChildren(tutHoles, rects.length, () => document.createElementNS('http://www.w3.org/2000/svg', 'rect'));
     syncChildren(tutRings, rects.length, () => {
@@ -722,35 +929,40 @@
     if (e.code === 'Enter' || e.code === 'ArrowRight') { e.preventDefault(); if (!e.repeat) tutNext(false); return; }
     if (e.code === 'ArrowLeft') { e.preventDefault(); if (!e.repeat) tutPrev(); return; }
     if (e.code === 'Tab') { e.preventDefault(); return; }
-    if (tutPracticing()) onPlayKeyDown(e);
+    // モールスは説明だけのステップでも電鍵を押して音とゲージを試せる（打った記号は判定しない）
+    if (tutPracticing() || isMorse()) onPlayKeyDown(e);
   }
 
-  TUTORIAL_CHAPTERS.forEach((name, ci) => {
-    const li = document.createElement('li');
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.title = name;
-    b.addEventListener('click', (e) => {
-      tutStep(TUTORIAL_STEPS.findIndex((s) => s.ch === ci));
-      e.currentTarget.blur();
+  function buildTutChapters() {
+    const ol = $('#tut-chapters');
+    ol.innerHTML = '';
+    M().chapters.forEach((name, ci) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = name;
+      b.addEventListener('click', (e) => {
+        tutStep(tutSteps().findIndex((s) => s.ch === ci));
+        e.currentTarget.blur();
+      });
+      li.append(b);
+      ol.append(li);
     });
-    li.append(b);
-    $('#tut-chapters').append(li);
-  });
+  }
   $('#tut-next').addEventListener('click', (e) => { tutNext(true); e.currentTarget.blur(); });
   $('#tut-prev').addEventListener('click', (e) => { tutPrev(); e.currentTarget.blur(); });
   $('#tut-exit').addEventListener('click', (e) => { goTitle(); e.currentTarget.blur(); });
 
   // ===== 結果の共有 =====
   function resultText() {
-    const g = game, r = g.result;
+    const g = game, r = g.result, m = M();
     const lines = [
-      `ハロウィン親指シフトで ${r.rank.rank}ランク「${r.rank.title}」になった！`,
+      `${m.appTitle}で ${r.rank.rank}ランク「${r.rank.title}」になった！`,
       `スコア ${r.score} ／ 正確率 ${(r.acc * 100).toFixed(1)}% ／ ${Math.round(r.cpm)}字/分`,
     ];
-    if (g.catPlays) lines.push(`🐈 黒猫ダッシュ ${g.catPlays}回`);
-    lines.push(`🏅 バッジ ${store.get('nh-badges', []).length} / ${BADGES.length}`);
-    lines.push('#ハロウィン親指シフト');
+    if (g.catPlays) lines.push(`${m.miniIcon} ${m.miniName} ${g.catPlays}回`);
+    lines.push(`🏅 バッジ ${store.get(m.badgesKey, []).length} / ${m.badges.length}`);
+    lines.push('#' + m.appTitle);
     if (/^https?:/.test(location.href)) lines.push(location.href);
     return lines.join('\n');
   }
@@ -847,7 +1059,7 @@
     switch (e.code) {
       case 'Enter': case 'Space': e.preventDefault(); startGame(); break;
       case 'KeyH': startTutorial(); break;
-      case 'KeyT': cyclePreset(); break;
+      case 'KeyT': if (!isMorse()) cyclePreset(); break;
       case 'KeyM': toggleBgm(); break;
     }
   }
@@ -872,9 +1084,10 @@
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Process' || e.isComposing) toast('IMEがオンになっています。半角英数に切り替えてね');
     if (e.ctrlKey || e.metaKey) return;
-    if (CatRun.active()) {
+    const mg = activeMini();
+    if (mg) {
       if (e.code === 'Escape') goTitle();
-      else CatRun.keyDown(e);
+      else mg.keyDown(e);
       return;
     }
     // ブラウザの自動再生制限のため、最初のキー入力で BGM を開始する
@@ -886,11 +1099,13 @@
   });
   window.addEventListener('keyup', (e) => {
     if (e.key === 'Alt') e.preventDefault();
-    if (CatRun.active()) { CatRun.keyUp(e); return; }
+    const mg = activeMini();
+    if (mg) { mg.keyUp(e); return; }
     if (screen === 'play') onPlayKeyUp(e);
   });
   window.addEventListener('blur', resetInput);
 
+  $('#mode-btn').addEventListener('click', (e) => { toggleMode(); e.currentTarget.blur(); });
   $('#thumb-btn').addEventListener('click', (e) => { cyclePreset(); e.currentTarget.blur(); });
   $('#bgm-btn').addEventListener('click', (e) => { audioCtx(); toggleBgm(); e.currentTarget.blur(); });
   $('#start-btn').addEventListener('click', startGame);
@@ -917,9 +1132,13 @@
   for (const o of WORDS) {
     for (const c of o.k) if (!KANA_TO_KEY[c]) console.warn('配列にない文字:', c, o.k);
   }
+  for (const o of MORSE_WORDS) {
+    for (const c of o.k) if (!MORSE[c]) console.warn('モールス符号にない文字:', c, o.k);
+  }
   buildKeyboard();
+  buildMorsePad();
   applyKb();
   renderThumbLabels();
   renderBgmState();
-  renderTitle();
+  applyMode();
 })();
