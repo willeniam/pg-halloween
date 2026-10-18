@@ -107,6 +107,9 @@ const TUTORIAL_STEPS = [
 ];
 
 // ===== モールス信号のチュートリアル =====
+// PC では Space キー、スマホでは画面の電鍵ボタン
+const KEY_WORD = '<span class="k-pc"><kbd>Space</kbd></span><span class="k-touch">電鍵ボタン</span>';
+
 const MORSE_TUTORIAL_CHAPTERS = ['モールス信号って何？', '短く押す「・」', '長く押す「－」', '組み合わせて打つ', '実際に打つ'];
 
 const MORSE_TUTORIAL_STEPS = [
@@ -125,8 +128,9 @@ const MORSE_TUTORIAL_STEPS = [
   },
   {
     ch: 0, title: '電鍵（でんけん）', target: ['#morse-key'], place: 'above',
-    text: '信号を打つ道具を<b>電鍵</b>といいます。このゲームでは <kbd>Space</kbd> が電鍵です'
-      + '<small>（画面の電鍵をクリック長押ししてもOK）</small>。<br>'
+    text: '信号を打つ道具を<b>電鍵</b>といいます。このゲームでは '
+      + '<span class="k-pc"><kbd>Space</kbd> が電鍵です<small>（画面の電鍵をクリック長押ししてもOK）</small></span>'
+      + '<span class="k-touch">画面下の<b>丸いボタン</b>が電鍵です</span>。<br>'
       + '試しに押してみよう。押している間「ピー」と鳴ります。',
   },
 
@@ -134,7 +138,7 @@ const MORSE_TUTORIAL_STEPS = [
   {
     ch: 1, title: '短く押すと「・」', target: ['#morse-key', '.next-box'], place: 'above',
     words: [{ d: '短点の練習', k: 'E' }],
-    text: '<kbd>Space</kbd> を<b>「トン」と短く</b>押してすぐ離すと短点「・」。<br>'
+    text: KEY_WORD + ' を<b>「トン」と短く</b>押してすぐ離すと短点「・」。<br>'
       + '「E」は「・」1つだけの文字です。',
   },
   {
@@ -148,14 +152,14 @@ const MORSE_TUTORIAL_STEPS = [
   {
     ch: 2, title: '長く押すと「－」', target: ['#morse-key', '.next-box'], place: 'above',
     words: [{ d: '長点の練習', k: 'T' }],
-    text: '<kbd>Space</kbd> を<b>「ツー」と長めに</b>押すと長点「－」。<br>'
-      + '電鍵のゲージが<b>線をこえてオレンジ</b>になったら長点です（0.2秒）。',
+    text: KEY_WORD + ' を<b>「ツー」と長めに</b>押すと長点「－」。<br>'
+      + '<span class="k-pc">電鍵のゲージが<b>線をこえてオレンジ</b></span><span class="k-touch">押し続けてボタンが<b>オレンジ</b></span>になったら長点です（0.2秒）。',
   },
   {
     ch: 2, title: 'やってみよう', practice: true, target: ['#prompt-box', '.next-box', '#morse-key'],
     anchor: '.stage-area', place: 'above',
     words: [{ d: '長点だけの文字', k: 'TMO' }],
-    text: `T ${morseHtml('-')}　M ${morseHtml('--')}　O ${morseHtml('---')}<br>ゲージがオレンジになるまで押してから離そう。`,
+    text: `T ${morseHtml('-')}　M ${morseHtml('--')}　O ${morseHtml('---')}<br><span class="k-pc">ゲージが</span><span class="k-touch">ボタンが</span>オレンジになるまで押してから離そう。`,
   },
 
   // ---- 4. 組み合わせて打つ ----
@@ -184,8 +188,8 @@ const MORSE_TUTORIAL_STEPS = [
   {
     ch: 4, title: '本番の画面', target: ['.ph-stats', '#prompt-box', '.next-box'],
     words: [{ d: 'おばけ', k: 'GHOST' }],
-    text: 'まんなかに英単語（上は日本語の意味）、右につぎの文字と符号が出ます。<br>'
-      + 'スコアは<b>速度 × 正確率²</b>。<kbd>Tab</kbd> で符号表を隠せます。',
+    text: 'まんなかに英文（上は日本語の意味）、右につぎの文字と符号が出ます。<br>'
+      + '単語の間のすき間は<b>打たなくてOK</b>。スコアは<b>速度 × 正確率²</b>。<kbd>Tab</kbd> で符号表を隠せます。',
   },
   {
     ch: 4, title: 'やってみよう（総まとめ）', practice: true, target: ['#prompt-box', '.next-box'],

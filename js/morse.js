@@ -16,36 +16,26 @@ const morseHtml = (code, lit = 0) =>
   + '</span>';
 const morseText = (code) => code.replace(/\./g, '・').replace(/-/g, '－');
 
-// 1回のプレイで MORSE_WORDS から MORSE_QUESTION_COUNT 語を出題（d: 意味, k: 打つ英単語）
-const MORSE_QUESTION_COUNT = 8;
+// 1回のプレイで MORSE_WORDS から MORSE_QUESTION_COUNT 文を出題（d: 意味, k: 打つ英文）
+const MORSE_QUESTION_COUNT = 4;
 
 const MORSE_WORDS = [
-  { d: 'こうもり', k: 'BAT' },
-  { d: '黒猫', k: 'CAT' },
-  { d: 'ばあ！', k: 'BOO' },
-  { d: 'ふくろう', k: 'OWL' },
-  { d: '満月', k: 'MOON' },
-  { d: '魔女', k: 'WITCH' },
-  { d: 'おばけ', k: 'GHOST' },
-  { d: 'ほうき', k: 'BROOM' },
-  { d: 'お菓子', k: 'CANDY' },
-  { d: '骸骨', k: 'SKULL' },
-  { d: '呪文', k: 'SPELL' },
-  { d: '魔法', k: 'MAGIC' },
-  { d: '真夜中', k: 'NIGHT' },
-  { d: 'お墓', k: 'GRAVE' },
-  { d: 'ミイラ', k: 'MUMMY' },
-  { d: 'マント', k: 'CAPE' },
-  { d: 'ごほうび', k: 'TREAT' },
-  { d: 'いたずら', k: 'TRICK' },
-  { d: '骨', k: 'BONES' },
-  { d: '蜘蛛', k: 'SPIDER' },
-  { d: 'かぼちゃ', k: 'PUMPKIN' },
-  { d: 'ゾンビ', k: 'ZOMBIE' },
-  { d: 'ポーション', k: 'POTION' },
-  { d: 'きば', k: 'FANG' },
-  { d: 'カラス', k: 'CROW' },
-  { d: 'こわい', k: 'SCARY' },
+  { d: 'お菓子くれなきゃいたずらするぞ', k: 'TRICK OR TREAT' },
+  { d: 'ハッピーハロウィン', k: 'HAPPY HALLOWEEN' },
+  { d: 'ほうきに乗った魔女', k: 'WITCH ON A BROOM' },
+  { d: '夜の黒猫', k: 'BLACK CAT AT NIGHT' },
+  { d: '満月がのぼる', k: 'FULL MOON RISES' },
+  { d: 'おばけはお菓子が大好き', k: 'GHOSTS LOVE CANDY' },
+  { d: 'かぼちゃパーティー', k: 'PUMPKIN PARTY' },
+  { d: 'こわい夜', k: 'SPOOKY NIGHT' },
+  { d: 'こうもりが高く飛ぶ', k: 'BATS FLY HIGH' },
+  { d: '魔法の呪文', k: 'MAGIC SPELL' },
+  { d: 'ゾンビのパレード', k: 'ZOMBIE PARADE' },
+  { d: '不気味な蜘蛛', k: 'CREEPY SPIDER' },
+  { d: '骸骨と骨', k: 'SKULL AND BONES' },
+  { d: '吸血鬼のきば', k: 'VAMPIRE FANGS' },
+  { d: 'お菓子をちょうだい', k: 'GIVE ME CANDY' },
+  { d: 'お墓のミイラ', k: 'MUMMY IN A GRAVE' },
 ];
 
 // score = 速度(字/分) × 正確率²（モールスは1字に時間がかかるので親指シフトより基準を下げる）

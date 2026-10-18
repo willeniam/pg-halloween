@@ -28,7 +28,8 @@
 
   // ===== 入力方式（親指シフト ／ モールス信号） =====
   // MODES は下のバッジ定義のあとで作る
-  let mode = store.get('nh-mode', 'nicola');
+  const NICOLA_ENABLED = false;
+  let mode = NICOLA_ENABLED ? store.get('nh-mode', 'nicola') : 'morse';
   const M = () => MODES[mode];
   const isMorse = () => mode === 'morse';
 
@@ -48,6 +49,7 @@
     if (!actx) {
       try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { actx = null; }
     }
+    if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
     return actx;
   };
   function tone(freq, dur, type = 'sine', vol = 0.08, delay = 0) {
@@ -160,6 +162,7 @@
   }
   function applyMode() {
     const m = M();
+    $('#mode-btn').hidden = !NICOLA_ENABLED;
     document.body.classList.toggle('mode-morse', isMorse());
     document.title = m.appTitle;
     $('#mode-label').textContent = isMorse() ? '親指シフト入力に変更する' : 'モールス信号入力に変更する';
@@ -167,7 +170,7 @@
     renderTitle();
   }
   function toggleMode() {
-    if (screen !== 'title') return;
+    if (!NICOLA_ENABLED || screen !== 'title') return;
     mode = isMorse() ? 'nicola' : 'morse';
     store.set('nh-mode', mode);
     applyMode();
@@ -256,6 +259,7 @@
       if (screen === 'play') morsePress();
     });
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) key.addEventListener(ev, morseRelease);
+    key.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   let showKb = store.get('nh-kb', true);
   function applyKb() { $('#kb-wrap').classList.toggle('hide', !showKb); }
@@ -436,9 +440,19 @@
     };
   }
 
+  // スマホで後から再生できるよう、タップ時に一度鳴らしておく
+  let catBgmUnlocked = false;
+  function unlockCatBgm() {
+    if (catBgmUnlocked || catBgm.error) return;
+    catBgmUnlocked = true;
+    catBgm.muted = true;
+    catBgm.play().then(() => { catBgm.pause(); catBgm.currentTime = 0; }).catch(() => {});
+  }
+
   function startGame() {
     endTutorial();
     audioCtx();
+    unlockCatBgm();
     syncBgm();
     game = newGame(buildQuestions());
     resetInput();
@@ -457,7 +471,7 @@
     box.innerHTML = '';
     for (const c of q.kana) {
       const s = document.createElement('span');
-      s.className = 'ch';
+      s.className = c === ' ' ? 'ch sp' : 'ch';
       s.textContent = c;
       box.append(s);
     }
@@ -493,7 +507,7 @@
       nc.className = 'next-char' + (k && k.shift !== 'none' ? ' sh-' + k.shift : '');
       $('#next-hint').innerHTML = hintHtml(target);
     }
-    const after = q.kana[game.pos + 1];
+    const after = q.kana.slice(game.pos + 1).replace(/^ +/, '')[0];
     $('#next-after').textContent = after ? `そのつぎ：${after}` : game.qi + 1 < game.questions.length ? 'つぎのお題へ' : 'ラスト！';
     highlightKey(target);
     $('#play-count').textContent = `${game.qi + 1} / ${game.questions.length}`;
@@ -534,8 +548,9 @@
       se('correct');
       burstAt(curEl, 7);
       ghostReact('happy');
-      if (game.combo % 20 === 0) comboCelebrate(game.combo);
+      if (game.combo % 10 === 0) comboCelebrate();
       game.pos++;
+      while (q.kana[game.pos] === ' ') game.pos++;
       if (game.pos >= q.kana.length) {
         const perfect = game.missed.size === 0;
         const catGo = perfect && game.catCool <= 0 && Math.random() < CAT_CHANCE;
@@ -596,7 +611,9 @@
       resetInput();  // 待っている間に押し始めた電鍵の音を止める
       const p = preset();
       const m = M();
-      m.mini.start({
+      const mini = pick(m.minis);
+      const clearLine = mini === WitchFly ? '飛びきった！' : '逃げきった！';
+      mini.start({
         music: catBgm.error ? null : catBgm,
         muted: !bgmOn,  // BGM OFF でも曲の長さで終わるよう、無音で再生する
         sound: se,
@@ -612,7 +629,7 @@
           syncBgm();
           renderQuestion();
           updateStats();
-          ghostSay(r.cleared ? `${m.miniClear} ${r.meters}m` : 'おかえり！');
+          ghostSay(r.cleared ? `${clearLine} ${r.meters}m` : 'おかえり！');
         },
       });
     }, 450);
@@ -689,13 +706,13 @@
     { id: 'rankS', icon: '👑', name: '大魔女', cond: 'Sランクをとる', ok: (s) => s.sRanks >= 1 },
   ];
   const MORSE_BADGES = [
-    { id: 'fly1', icon: '🧹', name: '見習い魔女', cond: 'ほうきフライトを初めてプレイ', ok: (s) => s.catPlays >= 1 },
-    { id: 'fly5', icon: '🦉', name: 'ほうき乗りの常連', cond: 'ほうきフライトを合計5回プレイ', ok: (s) => s.catPlays >= 5 },
-    { id: 'fly7', icon: '🎃', name: 'ほうきまみれ', cond: `1回のゲームでほうきフライトを${FLY_MAX}回（最大）プレイ`, ok: (s) => s.catMaxInGame >= FLY_MAX },
-    { id: 'clear1', icon: '🌟', name: '夜空の生還者', cond: 'ほうきフライトを初めてクリア', ok: (s) => s.catClears >= 1 },
-    { id: 'clear5', icon: '🦇', name: '空の名人', cond: 'ほうきフライトを合計5回クリア', ok: (s) => s.catClears >= 5 },
-    { id: 'm1000', icon: '☁️', name: '夜空のおさんぽ', cond: 'ほうきフライトで合計1000m飛ぶ', ok: (s) => s.catMeters >= 1000 },
-    { id: 'm10000', icon: '🌕', name: '月まで一直線', cond: 'ほうきフライトで合計10000m飛ぶ', ok: (s) => s.catMeters >= 10000 },
+    { id: 'fly1', icon: '🧹', name: '見習い魔女', cond: 'ミニゲームを初めてプレイ', ok: (s) => s.catPlays >= 1 },
+    { id: 'fly5', icon: '🐾', name: '夜のなかまたち', cond: 'ミニゲームを合計5回プレイ', ok: (s) => s.catPlays >= 5 },
+    { id: 'fly7', icon: '🎃', name: 'ほうきまみれ', cond: `1回のゲームでミニゲームを${FLY_MAX}回（最大）プレイ`, ok: (s) => s.catMaxInGame >= FLY_MAX },
+    { id: 'clear1', icon: '🌟', name: '奇跡の生還', cond: 'ミニゲームを初めてクリア', ok: (s) => s.catClears >= 1 },
+    { id: 'clear5', icon: '🦇', name: '逃げ足名人', cond: 'ミニゲームを合計5回クリア', ok: (s) => s.catClears >= 5 },
+    { id: 'm1000', icon: '☁️', name: '真夜中のおさんぽ', cond: 'ミニゲームで合計1000m進む', ok: (s) => s.catMeters >= 1000 },
+    { id: 'm10000', icon: '🌕', name: '月まで一直線', cond: 'ミニゲームで合計10000m進む', ok: (s) => s.catMeters >= 10000 },
     { id: 'game1', icon: '👻', name: 'はじめの一歩', cond: 'ゲームを最後までプレイ', ok: (s) => s.games >= 1 },
     { id: 'nomiss', icon: '📡', name: '天才通信士', cond: 'ノーミスで最後までプレイ', ok: (s) => s.perfectGames >= 1 },
     { id: 'rankS', icon: '👑', name: '大魔女', cond: 'Sランクをとる', ok: (s) => s.sRanks >= 1 },
@@ -706,14 +723,14 @@
       name: '親指シフト', appTitle: 'ハロウィン親指シフト', stageName: 'ハロウィン単語',
       words: WORDS, count: QUESTION_COUNT, ranks: RANKS,
       bestKey: 'nh-best-words', statsKey: 'nh-stats', badgesKey: 'nh-badges', badges: BADGES,
-      mini: CatRun, miniName: '黒猫ダッシュ', miniIcon: '🐈', miniClear: '逃げきった！',
+      minis: [CatRun], miniName: '黒猫ダッシュ', miniIcon: '🐈',
       chapters: TUTORIAL_CHAPTERS, steps: TUTORIAL_STEPS,
     },
     morse: {
-      name: 'モールス信号', appTitle: 'ハロウィンモールス信号', stageName: 'ハロウィン英単語',
+      name: 'モールス信号', appTitle: 'ハロウィンモールス信号', stageName: 'ハロウィン英文',
       words: MORSE_WORDS, count: MORSE_QUESTION_COUNT, ranks: MORSE_RANKS,
       bestKey: 'nh-best-morse', statsKey: 'nh-stats-morse', badgesKey: 'nh-badges-morse', badges: MORSE_BADGES,
-      mini: WitchFly, miniName: 'ほうきフライト', miniIcon: '🧹', miniClear: '飛びきった！',
+      minis: [CatRun], miniName: '黒猫ダッシュ', miniIcon: '🐈',
       chapters: MORSE_TUTORIAL_CHAPTERS, steps: MORSE_TUTORIAL_STEPS,
     },
   };
@@ -770,6 +787,7 @@
     $('#kb-wrap').classList.remove('hide');
     show('play');
     $('#tut').hidden = false;
+    document.body.classList.add('tut-on');
     tutStep(0);
     tutLoop();
   }
@@ -779,6 +797,7 @@
     tut = null;
     game = null;
     $('#tut').hidden = true;
+    document.body.classList.remove('tut-on');
     document.body.classList.remove('tut-explain');
     $('#ph-stage-name').textContent = M().stageName;
     applyKb();
@@ -1022,12 +1041,8 @@
     p.addEventListener('animationend', () => p.remove());
     fx.append(p);
   }
-  function comboCelebrate(n) {
-    const b = document.createElement('div');
-    b.className = 'combo-banner';
-    b.innerHTML = `${n} COMBO!<small>おばけも大よろこび！</small>`;
-    b.addEventListener('animationend', () => b.remove());
-    fx.append(b);
+  function comboCelebrate() {
+    retrigger($('#stat-combo'), 'pop');
   }
   let ghostTimer = 0;
   function ghostReact(kind) {
@@ -1105,6 +1120,7 @@
   });
   window.addEventListener('blur', resetInput);
 
+  $('#quit-btn').addEventListener('click', (e) => { goTitle(); e.currentTarget.blur(); });
   $('#mode-btn').addEventListener('click', (e) => { toggleMode(); e.currentTarget.blur(); });
   $('#thumb-btn').addEventListener('click', (e) => { cyclePreset(); e.currentTarget.blur(); });
   $('#bgm-btn').addEventListener('click', (e) => { audioCtx(); toggleBgm(); e.currentTarget.blur(); });
@@ -1133,7 +1149,7 @@
     for (const c of o.k) if (!KANA_TO_KEY[c]) console.warn('配列にない文字:', c, o.k);
   }
   for (const o of MORSE_WORDS) {
-    for (const c of o.k) if (!MORSE[c]) console.warn('モールス符号にない文字:', c, o.k);
+    for (const c of o.k) if (c !== ' ' && !MORSE[c]) console.warn('モールス符号にない文字:', c, o.k);
   }
   buildKeyboard();
   buildMorsePad();

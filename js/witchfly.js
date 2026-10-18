@@ -4,11 +4,16 @@
 const WitchFly = (() => {
   'use strict';
 
-  // 座標は「高さ 300 の仮想画面」単位。y は下向き。
-  const VIEW_H = 300;
-  const GROUND = 262;      // 地面（ここまで落ちたらアウト）
+  // 座標は仮想画面の単位。y は下向き。VIEW_H・GROUND・WX・pace は resize() で決まる。
+  const BASE_H = 300;
+  const FLOOR_H = 38;      // 地面より下の帯の高さ
+  const MIN_VIEW_W = 440;
+  const LOOK_REF = 520;    // 流れる速さの基準になる、魔女の前に見える幅
+  let VIEW_H = BASE_H;
+  let GROUND = BASE_H - FLOOR_H; // 地面（ここまで落ちたらアウト）
   const CEIL = 6;          // 天井（ここより上へは行けない）
-  const WX = 70;           // 魔女の左端
+  let WX = 70;             // 魔女の左端
+  let pace = 1;            // 流れる速さの倍率
   const SPR_W = 120, SPR_H = 64;
   // 当たり判定（スプライト左上からの相対位置）。ほうきと帽子のつばは含めない
   const HIT = { x: 62, y: 14, w: 34, h: 40 };
@@ -19,7 +24,8 @@ const WitchFly = (() => {
   const ACCEL = 5;         // 1秒ごとの加速
   const SPEED_MAX = 560;
   const PK_H = 34;         // かぼちゃ1個の高さ
-  const GATE_GAP = 128;    // 上下の障害物のすき間
+  const GATE_GAP = 256;    // かぼちゃとクモが同時に出るときのすき間
+  const PASS = 128;        // 必ず残す通り道の高さ
   const INTRO_MS = 5000;   // 最初はこの間、魔女をその場に浮かせておく（障害物も出ない）
   const COUNT_FROM = 3;    // 最後の何秒をカウントダウンするか
   const GO_MS = 700;       // 「GO!」を出しておく時間
@@ -34,7 +40,7 @@ const WitchFly = (() => {
   const BAT_PTS = [32, 10, 34, 5, 35, 10, 40, 9, 48, 6, 56, 6, 64, 12, 58, 13, 54, 18, 49, 16, 45, 21, 40, 18, 36, 22,
     32, 26, 28, 22, 24, 18, 19, 21, 15, 16, 10, 18, 6, 13, 0, 12, 8, 6, 16, 6, 24, 9, 29, 10, 30, 5];
   // 遠くの星（位置は固定、ゆっくり流れる）
-  const STARS = Array.from({ length: 70 }, () => ({ x: Math.random() * 2400, y: rand(8, 200), r: rand(0.6, 1.6), p: Math.random() * 6 }));
+  const STARS = Array.from({ length: 90 }, () => ({ x: Math.random() * 2400, y: Math.random(), r: rand(0.6, 1.6), p: Math.random() * 6 }));
 
   const sprite = new Image();
   let spriteOk = false;
@@ -65,8 +71,12 @@ const WitchFly = (() => {
     const w = cv.clientWidth, h = cv.clientHeight;
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
-    scale = cv.height / VIEW_H;
+    scale = Math.min(cv.height / BASE_H, cv.width / MIN_VIEW_W);
     viewW = cv.width / scale;
+    VIEW_H = cv.height / scale;
+    GROUND = VIEW_H - FLOOR_H;
+    WX = viewW < 600 ? 24 : 70;
+    pace = clamp((viewW - WX - SPR_W) / LOOK_REF, 0.55, 1);
   }
 
   function say(text, cls) {
@@ -79,6 +89,9 @@ const WitchFly = (() => {
   // ===== 開始・終了 =====
   function start(opts) {
     if (!el) init();
+    el.hidden = false;
+    document.body.classList.add('cat-active');
+    resize();
     const y0 = GROUND / 2 - SPR_H / 2;
     st = {
       opts,
@@ -94,19 +107,17 @@ const WitchFly = (() => {
       obs: [],
       sparks: [],
       nextGap: 0,
+      free: [CEIL, GROUND],  // 1つ前の障害物の上下で通れる範囲
       count: 0,
       goAt: 0,
       musicOk: false,
       raf: 0,
     };
-    el.hidden = false;
-    document.body.classList.add('cat-active');
-    resize();
     titleEl.textContent = 'ほうきフライト！';
-    hintEl.innerHTML = '<kbd>Space</kbd> / クリック長押しで上昇・はなすと下降 ・ 曲が終わるまで飛びきれ！';
+    hintEl.innerHTML = '<span class="k-pc"><kbd>Space</kbd> / クリック</span><span class="k-touch">画面を</span>長押しで上昇・はなすと下降 ・ 曲が終わるまで飛びきれ！';
     scoreEl.textContent = '0';
     barEl.style.width = '0%';
-    say('魔女があらわれた！<span class="cr-key">Space</span><small>長押しで上昇・はなすと下降</small>', 'intro');
+    say('魔女があらわれた！<span class="cr-key"><span class="k-pc">Space</span><span class="k-touch">長押し</span></span><small><span class="k-pc">長押しで</span>上昇・はなすと下降</small>', 'intro');
 
     const m = opts.music;
     if (m) {
@@ -199,23 +210,46 @@ const WitchFly = (() => {
     const amp = rand(40, 70);
     return { type: 'ghost', x, w: 40, y0: rand(CEIL + 30 + amp, GROUND - 30 - amp), amp, f: rand(1.2, 2), ph: rand(0, 6), vx: 0, y: 0 };
   };
+  const maxStack = () => Math.max(1, Math.floor((GROUND - CEIL - PASS) / PK_H));
+  const maxSpiderLen = () => GROUND - PASS - 26;
   function gate(x) {
-    const n = randInt(1, 2);
-    const gapTop = GROUND - n * PK_H - GATE_GAP;
-    return [stack(x, n), spider(x + 4, gapTop - 26)];
+    const gap = Math.min(GATE_GAP, GROUND - CEIL - PK_H - 36);
+    const n = randInt(1, Math.max(1, Math.floor((GROUND - CEIL - gap - 36) / PK_H)));
+    const gapTop = GROUND - n * PK_H - gap;
+    return [stack(x, n), spider(x + 4, Math.max(10, gapTop - 26))];
+  }
+  // 障害物の上下で通れる範囲 [上端, 下端]
+  function freeRange(list) {
+    let lo = CEIL, hi = GROUND;
+    for (const o of list) {
+      if (o.type === 'stack') hi = Math.min(hi, GROUND - o.n * PK_H);
+      else if (o.type === 'spider') lo = Math.max(lo, o.len + 26);
+    }
+    return [lo, hi];
+  }
+
+  function pickObstacles(x) {
+    const r = Math.random();
+    if (st.dist < SPEED0 * 6) return r < 0.5 ? [stack(x, randInt(1, Math.min(2, maxStack())))] : [bat(x)];
+    if (r < 0.22) return [stack(x, randInt(1, maxStack()))];
+    if (r < 0.42) return [spider(x, rand(30, Math.max(30, maxSpiderLen())))];
+    if (r < 0.6) return [bat(x)];
+    if (r < 0.75) return [ghost(x)];
+    return gate(x);
   }
 
   function spawn() {
-    const early = st.dist < SPEED0 * 6;
-    const r = Math.random();
     const x = viewW + 30;
-    let list;
-    if (early) list = r < 0.5 ? [stack(x, randInt(1, 2))] : [bat(x)];
-    else if (r < 0.22) list = [stack(x, randInt(1, 4))];
-    else if (r < 0.42) list = [spider(x, rand(30, 140))];
-    else if (r < 0.6) list = [bat(x)];
-    else if (r < 0.75) list = [ghost(x)];
-    else list = gate(x);
+    // 1つ前の障害物と通れる範囲が PASS 以上重なるものを選ぶ
+    const [plo, phi] = st.free;
+    let list = null;
+    for (let i = 0; i < 12 && !list; i++) {
+      const c = pickObstacles(x);
+      const [lo, hi] = freeRange(c);
+      if (Math.min(hi, phi) - Math.max(lo, plo) >= PASS) list = c;
+    }
+    if (!list) list = [bat(x)];
+    st.free = freeRange(list);
     st.obs.push(...list);
     const w = Math.max(...list.map((o) => o.w));
     st.nextGap = w + rand(170, 300) + st.speed * 0.35;
@@ -248,7 +282,7 @@ const WitchFly = (() => {
       const n = Math.ceil((INTRO_MS - (t - s.phaseAt)) / 1000);
       if (n <= COUNT_FROM && n > 0 && n !== s.count) {
         s.count = n;
-        say(`${n}<small><b class="cr-key-s">Space</b> 長押しで上昇</small>`, 'count');
+        say(`${n}<small><b class="cr-key-s k-pc">Space</b><span class="k-touch">画面を</span> 長押しで上昇</small>`, 'count');
       }
       if (t - s.phaseAt > INTRO_MS) {
         s.phase = 'run';
@@ -267,9 +301,9 @@ const WitchFly = (() => {
     if (s.phase !== 'crash') {
       s.clock += dt;
       if (s.phase === 'run') s.speed = Math.min(SPEED_MAX, s.speed + ACCEL * dt);
-      const dx = s.speed * dt;
+      const dx = s.speed * pace * dt;
       s.scroll += dx;
-      if (s.phase === 'run') s.dist += dx;
+      if (s.phase === 'run') s.dist += s.speed * dt;
       for (const o of s.obs) {
         o.x -= dx + (o.vx || 0) * dt;
         if (o.y0 !== undefined) o.y = o.y0 + Math.sin(s.clock * o.f + o.ph) * o.amp;
@@ -344,7 +378,7 @@ const WitchFly = (() => {
       const x = ((p.x - off) % 2400 + 2400) % 2400;
       if (x > viewW) continue;
       ctx.fillStyle = `rgba(255, 255, 255, ${0.35 + 0.35 * Math.sin(s.clock * 2 + p.p)})`;
-      ctx.fillRect(x, p.y, p.r, p.r);
+      ctx.fillRect(x, 8 + p.y * (GROUND - 70), p.r, p.r);
     }
     // 月
     const mx = viewW - 110, my = 64;

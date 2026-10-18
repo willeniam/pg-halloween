@@ -1,12 +1,16 @@
-// 黒猫ダッシュ：タイピング中に割り込むミニゲーム（Chrome の恐竜ゲーム風）
+// 黒猫ダッシュ
 // CatRun.start(opts) で開始し、障害物に当たるか音楽が終わったら opts.onEnd({ cleared, meters }) を呼ぶ。
 const CatRun = (() => {
   'use strict';
 
-  // 座標は「高さ 300 の仮想画面」単位。
-  const VIEW_H = 300;
-  const GROUND = 246;
-  const CAT_X = 90;
+  const BASE_H = 300;
+  const FLOOR_H = 54;      // 地面より下の帯の高さ
+  const MIN_VIEW_W = 440;
+  const LOOK_REF = 560;    // 流れる速さの基準になる、猫の前に見える幅
+  let VIEW_H = BASE_H;
+  let GROUND = BASE_H - FLOOR_H;
+  let CAT_X = 90;
+  let pace = 1;            // 流れる速さの倍率
   const GRAVITY = 2600;
   const JUMP_V = 800;      // ジャンプ初速
   const CUT_V = 320;       // ボタンを早く離したときに上昇速度をここまで落とす（小ジャンプ）
@@ -46,8 +50,12 @@ const CatRun = (() => {
     const w = cv.clientWidth, h = cv.clientHeight;
     cv.width = Math.round(w * dpr);
     cv.height = Math.round(h * dpr);
-    scale = cv.height / VIEW_H;
+    scale = Math.min(cv.height / BASE_H, cv.width / MIN_VIEW_W);
     viewW = cv.width / scale;
+    VIEW_H = cv.height / scale;
+    GROUND = VIEW_H - FLOOR_H;
+    CAT_X = viewW < 600 ? 30 : 90;
+    pace = Math.max(0.7, Math.min(1, (viewW - CAT_X - 70) / LOOK_REF));
   }
 
   function say(text, cls) {
@@ -79,10 +87,10 @@ const CatRun = (() => {
     resize();
     // 画面はほうきフライトと共用なので、見出しと説明を毎回書き直す
     titleEl.textContent = '黒猫ダッシュ！';
-    hintEl.innerHTML = '<kbd>Space</kbd> / クリックでジャンプ ・ 曲が終わるまで逃げきれ！';
+    hintEl.innerHTML = '<span class="k-pc"><kbd>Space</kbd> / クリック</span><span class="k-touch">タップ</span>でジャンプ ・ 曲が終わるまで逃げきれ！';
     scoreEl.textContent = '0';
     barEl.style.width = '0%';
-    say('黒猫があらわれた！<span class="cr-key">Space</span><small>/ クリックでジャンプ</small>', 'intro');
+    say('黒猫があらわれた！<span class="cr-key"><span class="k-pc">Space</span><span class="k-touch">タップ</span></span><small>でジャンプ</small>', 'intro');
 
     const m = opts.music;
     if (m) {
@@ -214,10 +222,10 @@ const CatRun = (() => {
 
     if (moving) {
       if (s.phase === 'run') s.speed = Math.min(SPEED_MAX, s.speed + (s.speed < SPEED_MID ? ACCEL : ACCEL_LATE) * dt);
-      const dx = s.speed * dt;
+      const dx = s.speed * pace * dt;
       s.scroll += dx;
       s.runPhase += dx * 0.05;
-      if (s.phase === 'run') s.dist += dx;
+      if (s.phase === 'run') s.dist += s.speed * dt;
       for (const o of s.obs) o.x -= dx;
       s.obs = s.obs.filter((o) => o.x + o.w > -60);
       if (s.phase === 'run') {
@@ -270,6 +278,7 @@ const CatRun = (() => {
     for (const o of s.obs) drawObstacle(o);
     drawCat(s);
   }
+
 
   // 遠景：墓標と十字架のシルエット（ゆっくり流れる）
   function drawFarLayer(off) {

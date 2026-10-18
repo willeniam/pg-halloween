@@ -93,13 +93,14 @@
         <button id="thumb-btn" class="chip-btn only-nicola" type="button">親指キー：<b id="thumb-name"></b> <kbd>T</kbd></button>
         <button id="bgm-btn" class="chip-btn" type="button">BGM：<b id="bgm-state"></b> <kbd>M</kbd></button>
       </div>
-      <p class="howto">IMEはオフ（半角英数）で</p>
+      <p class="howto k-pc">IMEはオフ（半角英数）で</p>
     </div>
   </section>
 
   <!-- 練習画面 -->
   <section id="screen-play" class="screen">
     <header class="play-head">
+      <button id="quit-btn" class="quit-btn k-touch" type="button" aria-label="タイトルへ">✕</button>
       <div class="ph-stage"><b id="ph-stage-name">ハロウィン単語</b></div>
       <div class="ph-progress"><span id="play-count"></span><div class="bar"><i id="play-bar"></i></div></div>
       <dl class="ph-stats">
@@ -154,7 +155,7 @@
       <div id="morse-pad" class="morse-pad only-morse">
         <div id="morse-chart" class="morse-chart"></div>
         <div id="morse-key" class="morse-key">
-          <div class="mk-head"><kbd>Space</kbd> 電鍵 <span class="mk-sym"></span></div>
+          <div class="mk-head"><span class="k-pc"><kbd>Space</kbd> 電鍵</span><span class="k-touch">ここを押す</span> <span class="mk-sym"></span></div>
           <div class="mk-gauge"><i id="morse-gauge"></i><span class="mk-z z-dot">・ 短く</span><span class="mk-z z-dash">－ 長く</span></div>
         </div>
       </div>
