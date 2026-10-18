@@ -105,11 +105,11 @@
 
   const bgm = $('#bgm');
   let bgmOn = store.get('nh-bgm', true);
-  let bgmReady = false;
+  // 「なし」は読み込みに失敗したときだけ（スマホはタップしてから読み込むため）
+  let bgmReady = true;
   bgm.volume = 0.35;
-  bgm.addEventListener('canplay', () => { bgmReady = true; renderBgmState(); syncBgm(); }, { once: true });
+  bgm.addEventListener('canplay', () => syncBgm(), { once: true });
   bgm.addEventListener('error', () => { bgmReady = false; renderBgmState(); });
-  if (bgm.readyState >= 2) bgmReady = true;
   function syncBgm() {
     if (!bgmReady) return;
     if (bgmOn) bgm.play().catch(() => {});
@@ -1124,6 +1124,15 @@
     if (screen === 'play') onPlayKeyUp(e);
   });
   window.addEventListener('blur', resetInput);
+  // スマホでは最初のタップで BGM を開始する
+  window.addEventListener('pointerdown', () => {
+    if (!activeMini() && bgmOn && bgmReady && bgm.paused) syncBgm();
+  });
+  // iPhone はダブルタップで拡大するので、連打する場所ではタッチの既定動作を止める
+  for (const sel of ['#morse-key', '#cat-run']) {
+    $(sel).addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    $(sel).addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+  }
 
   $('#quit-btn').addEventListener('click', (e) => { goTitle(); e.currentTarget.blur(); });
   $('#mode-btn').addEventListener('click', (e) => { toggleMode(); e.currentTarget.blur(); });
