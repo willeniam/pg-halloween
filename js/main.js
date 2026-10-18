@@ -77,6 +77,8 @@
     else if (name === 'miss') { tone(160, 0.18, 'sawtooth', 0.05); tone(120, 0.2, 'sawtooth', 0.04, 0.05); }
     else if (name === 'clear') [660, 880, 1320].forEach((f, i) => tone(f, 0.18, 'triangle', 0.06, i * 0.07));
     else if (name === 'result') [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.07, i * 0.12));
+    else if (name === 'jump') { tone(520, 0.1, 'square', 0.025); tone(780, 0.08, 'square', 0.02, 0.04); }
+    else if (name === 'crash') { tone(220, 0.25, 'sawtooth', 0.06); tone(110, 0.35, 'sawtooth', 0.05, 0.08); }
   }
 
   const bgm = $('#bgm');
@@ -94,6 +96,8 @@
   function renderBgmState() {
     $('#bgm-state').textContent = !bgmReady ? 'なし' : bgmOn ? 'ON' : 'OFF';
   }
+  const catBgm = $('#cat-bgm');
+  catBgm.volume = 0.35;
   function toggleBgm() {
     bgmOn = !bgmOn;
     store.set('nh-bgm', bgmOn);
@@ -145,6 +149,7 @@
     renderThumbLabels();
   }
   function goTitle() {
+    if (CatRun.active()) { CatRun.abort(); syncBgm(); }
     game = null;
     resetInput();
     renderTitle();
@@ -280,6 +285,7 @@
       questions: buildQuestions(), qi: 0, pos: 0,
       correct: 0, miss: 0, combo: 0, maxCombo: 0,
       startTime: null, endTime: null, missed: new Set(), weak: {}, finished: false,
+      catLock: false, catCool: CAT_COOLDOWN,
     };
     resetInput();
     show('play');
@@ -351,11 +357,11 @@
     $('#stat-speed').textContent = Math.round(cpm);
     $('#stat-combo').textContent = game.combo;
   }
-  setInterval(() => { if (screen === 'play' && game && !game.finished) updateStats(); }, 300);
+  setInterval(() => { if (screen === 'play' && game && !game.finished && !game.catLock) updateStats(); }, 300);
 
   function handleKana(ch, code) {
     flashKey(code);
-    if (screen !== 'play' || !game || game.finished) return;
+    if (screen !== 'play' || !game || game.finished || game.catLock) return;
     const q = curQ();
     const target = q.kana[game.pos];
     if (game.startTime === null) game.startTime = now();
@@ -371,6 +377,9 @@
       if (game.combo % 20 === 0) comboCelebrate(game.combo);
       game.pos++;
       if (game.pos >= q.kana.length) {
+        const perfect = game.missed.size === 0;
+        const catGo = perfect && game.catCool <= 0 && Math.random() < CAT_CHANCE;
+        if (game.catCool > 0) game.catCool--;
         const box = $('#prompt-kana');
         const r = box.getBoundingClientRect();
         burst(r.left + r.width / 2, r.top + r.height / 2, 26, true);
@@ -381,7 +390,8 @@
         game.pos = 0;
         game.missed = new Set();
         if (game.qi >= game.questions.length) { finish(); return; }
-        renderQuestion();
+        if (catGo) startCat();
+        else renderQuestion();
       } else {
         updateCursor();
       }
@@ -401,6 +411,42 @@
       updateCursor();
     }
     updateStats();
+  }
+
+  // ===== 黒猫ダッシュ（ノーミスで単語を打つと、次の単語の前に割り込む） =====
+  const CAT_CHANCE = 1;     // ノーミスのとき割り込む確率（1 = 必ず）
+  const CAT_COOLDOWN = 0;   // 一度割り込んだら、次の判定まで最低この語数あける（開始直後も同様）
+
+  function startCat() {
+    const g = game;
+    g.catLock = true;
+    g.catCool = CAT_COOLDOWN;
+    resetInput();
+    highlightKey(null);
+    const t0 = now();
+    // 「パーフェクト！」を一瞬見せてから切り替える
+    setTimeout(() => {
+      if (game !== g || screen !== 'play') return;
+      bgm.pause();
+      const p = preset();
+      CatRun.start({
+        music: catBgm.error ? null : catBgm,
+        muted: !bgmOn,  // BGM OFF でも曲の長さで終わるよう、無音で再生する
+        sound: se,
+        jumpCodes: [...p.left, ...p.right],
+        onEnd(r) {
+          if (game !== g) return;
+          // ミニゲーム中の時間は入力速度に含めない
+          if (g.startTime !== null) g.startTime += now() - t0;
+          g.catLock = false;
+          resetInput();
+          syncBgm();
+          renderQuestion();
+          updateStats();
+          ghostSay(r.cleared ? `逃げきった！ ${r.meters}m` : 'おかえり！');
+        },
+      });
+    }, 450);
   }
 
   function finish() {
@@ -558,6 +604,11 @@
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Process' || e.isComposing) toast('IMEがオンになっています。半角英数に切り替えてね');
     if (e.ctrlKey || e.metaKey) return;
+    if (CatRun.active()) {
+      if (e.code === 'Escape') goTitle();
+      else CatRun.keyDown(e);
+      return;
+    }
     // ブラウザの自動再生制限のため、最初のキー入力で BGM を開始する
     if (bgmOn && bgmReady && bgm.paused) syncBgm();
     if (e.key === 'Alt' || e.code === 'Space') e.preventDefault();
@@ -567,6 +618,7 @@
   });
   window.addEventListener('keyup', (e) => {
     if (e.key === 'Alt') e.preventDefault();
+    if (CatRun.active()) { CatRun.keyUp(e); return; }
     if (screen === 'play') onPlayKeyUp(e);
   });
   window.addEventListener('blur', resetInput);

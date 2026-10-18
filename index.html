@@ -191,13 +191,27 @@
   </section>
 </main>
 
+<!-- 黒猫ダッシュ（ノーミスで単語を打つと割り込むミニゲーム） -->
+<section id="cat-run" class="cat-run" hidden>
+  <div class="cr-head">
+    <div class="cr-title">黒猫ダッシュ！</div>
+    <div class="cr-song" title="曲が終わるまで逃げきれ！"><i id="cr-bar"></i></div>
+    <div class="cr-score"><span id="cr-score">0</span><small>m</small></div>
+  </div>
+  <canvas id="cr-canvas" class="cr-canvas"></canvas>
+  <div id="cr-msg" class="cr-msg"></div>
+  <p class="cr-hint"><kbd>Space</kbd> / クリックでジャンプ ・ 曲が終わるまで逃げきれ！</p>
+</section>
+
 <div id="flash" class="flash"></div>
 <div id="fx-layer" class="fx-layer"></div>
 <div id="toast" class="toast"></div>
 <audio id="bgm" src="assets/bgm.mp3" loop preload="auto"></audio>
+<audio id="cat-bgm" src="assets/old_bgm.mp3" preload="auto"></audio>
 
 <script src="js/nicola.js"></script>
 <script src="js/data.js"></script>
+<script src="js/catrun.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

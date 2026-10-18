@@ -34,11 +34,11 @@ const WORDS = [
 
 // score = 速度(字/分) × 正確率²
 const RANKS = [
-  { rank: 'S', min: 100, acc: 0.95, title: '大魔女', comment: 'おばけたちがひれ伏した！ 夜の支配者だ。' },
-  { rank: 'A', min: 70, acc: 0.9, title: '月夜の魔法使い', comment: 'ほうきさばきが見事！ あと少しで大魔女。' },
+  { rank: 'S', min: 100, acc: 0.95, title: '大魔女', comment: 'おばけたちがひれ伏した！ 完璧な親指だ。' },
+  { rank: 'A', min: 70, acc: 0.9, title: '月夜の魔法使い', comment: 'ほうきさばきが見事！' },
   { rank: 'B', min: 45, acc: 0, title: 'かぼちゃの騎士', comment: 'なかなかの腕前。親指が目覚めてきた。' },
   { rank: 'C', min: 25, acc: 0, title: '見習いおばけ', comment: 'まだ指がふわふわしてる。くり返そう！' },
-  { rank: 'D', min: 0, acc: 0, title: '迷子のこうもり', comment: 'まずはゆっくり、正確に。キーボードを見てOK！' },
+  { rank: 'D', min: 0, acc: 0, title: '迷子のこうもり', comment: 'まずはゆっくり、正確に。' },
 ];
 
 const CLEAR_LINES = ['いいね！', 'その調子！', 'ひゅ〜どろどろ♪', 'おみごと！', 'まほうみたい！', 'うらめしや…じゃなくて、すごい！'];

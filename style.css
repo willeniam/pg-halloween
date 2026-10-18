@@ -391,6 +391,45 @@ main { position: relative; z-index: 1; min-height: 100vh; display: flex; padding
 }
 .toast.show { opacity: 1; }
 
+/* ===== 黒猫ダッシュ ===== */
+.cat-run {
+  position: fixed; inset: 0; z-index: 8;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  padding: 16px;
+  background: radial-gradient(ellipse at 50% 60%, rgba(30, 15, 53, .55), rgba(7, 4, 13, .88) 75%);
+  backdrop-filter: blur(3px);
+  cursor: pointer; touch-action: manipulation;
+  animation: catin .35s ease-out;
+}
+@keyframes catin { from { opacity: 0; transform: scale(1.04); } }
+body.cat-active main { filter: blur(2px) brightness(.6); }
+.cr-head {
+  width: min(1080px, 100%); margin: 0 auto;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px;
+}
+.cr-title {
+  font: 400 clamp(22px, 4vw, 34px) var(--logo);
+  background: linear-gradient(180deg, #ffe08a 0%, #ff9a2a 55%, #e2560c 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 #3b1466);
+}
+.cr-song { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.cr-song i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--purple), var(--orange)); }
+.cr-score { font: 400 30px var(--logo); color: var(--gold); min-width: 90px; text-align: right; }
+.cr-score small { font: 700 14px var(--round); color: var(--dim); margin-left: 3px; }
+.cr-canvas { display: block; width: 100%; height: min(56vh, 420px); }
+.cr-hint { margin: 0; text-align: center; color: var(--dim); font-size: 14px; }
+.cr-msg {
+  position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(.6);
+  font: 400 clamp(36px, 7vw, 64px) var(--logo); color: var(--gold); white-space: nowrap; text-align: center;
+  text-shadow: 0 0 30px rgba(255, 140, 40, .9), 0 5px 0 #3b1466;
+  opacity: 0; pointer-events: none;
+}
+.cr-msg small { display: block; font: 800 20px var(--round); color: var(--violet); text-shadow: none; margin-top: 4px; }
+.cr-msg.show { animation: crmsg .35s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+.cr-msg.crash { color: var(--miss); text-shadow: 0 0 30px rgba(255, 61, 106, .8), 0 5px 0 #3b1466; }
+@keyframes crmsg { to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
 /* 画面が狭いとき */
 @media (max-width: 900px) {
   :root { --key: 44px; --gap: 4px; }
