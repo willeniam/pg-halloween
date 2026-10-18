@@ -120,12 +120,6 @@
     img.addEventListener('load', () => document.body.classList.add('has-bg'));
     img.src = 'assets/bg.png';
   }
-  let witchImg = null;
-  {
-    const img = new Image();
-    img.addEventListener('load', () => { witchImg = img.src; });
-    img.src = 'assets/witch.png';
-  }
 
   // ===== 画面 =====
   let screen = 'title';
@@ -463,7 +457,6 @@
       show('result');
       se('result');
       if (rank.rank === 'S' || rank.rank === 'A') {
-        flyWitch();
         const r = rk.getBoundingClientRect();
         burst(r.left + r.width / 2, r.top + r.height / 2, 40, true);
       }
@@ -505,20 +498,12 @@
     p.addEventListener('animationend', () => p.remove());
     fx.append(p);
   }
-  function flyWitch() {
-    const w = document.createElement('div');
-    w.className = 'witch-fly' + (witchImg ? ' has-img' : '');
-    w.innerHTML = witchImg ? `<img src="${witchImg}" alt="">` : '<svg viewBox="0 -20 130 100"><use href="#witch"/></svg>';
-    w.addEventListener('animationend', () => w.remove());
-    fx.append(w);
-  }
   function comboCelebrate(n) {
     const b = document.createElement('div');
     b.className = 'combo-banner';
-    b.innerHTML = `${n} COMBO!<small>魔女が祝福してくれた！</small>`;
+    b.innerHTML = `${n} COMBO!<small>おばけも大よろこび！</small>`;
     b.addEventListener('animationend', () => b.remove());
     fx.append(b);
-    flyWitch();
   }
   let ghostTimer = 0;
   function ghostReact(kind) {
