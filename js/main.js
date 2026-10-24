@@ -722,9 +722,21 @@
       hole.setAttribute('rx', 12);
       tutRings.children[k].style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
     });
-    placeTutCard(s.anchor ? tutRects([s.anchor]) : rects, s.place || 'below');
+    const avoid = s.practice ? rects.concat(tutRects(TUT_PRACTICE_AVOID)) : rects;
+    placeTutCard(s.anchor ? tutRects([s.anchor]) : rects, s.place || 'below', avoid);
   }
-  function placeTutCard(rects, place) {
+  const TUT_PRACTICE_AVOID = ['#prompt-box', '.next-box', '#keyboard'];
+  // カードと rects の重なった面積の合計
+  function tutOverlap(x, y, w, h, rects) {
+    let sum = 0;
+    for (const r of rects) {
+      const ox = Math.min(x + w, r.right + TUT_PAD) - Math.max(x, r.left - TUT_PAD);
+      const oy = Math.min(y + h, r.bottom + TUT_PAD) - Math.max(y, r.top - TUT_PAD);
+      if (ox > 0 && oy > 0) sum += ox * oy;
+    }
+    return sum;
+  }
+  function placeTutCard(rects, place, avoid) {
     const vw = innerWidth, vh = innerHeight, M = 12, G = 16;
     const w = tutCard.offsetWidth, h = tutCard.offsetHeight;
     let x = (vw - w) / 2, y = (vh - h) / 2;
@@ -741,6 +753,19 @@
     }
     x = Math.max(M, Math.min(x, vw - w - M));
     y = Math.max(M, Math.min(y, vh - h - M));
+
+    if (tutOverlap(x, y, w, h, avoid) > 0) {
+      let best = null;
+      const xs = [x, M, (vw - w) / 2, vw - w - M].map((cx) => Math.max(M, Math.min(cx, vw - w - M)));
+      for (const cx of xs) {
+        for (let cy = M; cy <= vh - h - M; cy += 8) {
+          const o = tutOverlap(cx, cy, w, h, avoid);
+          const d = Math.hypot(cx - x, cy - y);
+          if (!best || o < best.o - 1 || (o <= best.o + 1 && d < best.d)) best = { o, d, x: cx, y: cy };
+        }
+      }
+      if (best) { x = best.x; y = best.y; }
+    }
 
     tutCard.style.transition = tut.placed ? '' : 'none';
     tut.placed = true;
