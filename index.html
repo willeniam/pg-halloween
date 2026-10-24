@@ -77,20 +77,17 @@
   <div class="mist"></div>
 </div>
 
-<!-- 入力方式の切り替え（タイトル画面の右下） -->
-<button id="mode-btn" class="mode-btn" type="button">⇄ <span id="mode-label"></span></button>
-
 <main>
   <!-- タイトル画面 -->
   <section id="screen-title" class="screen active">
     <div class="title-wrap">
       <img class="title-ghost" src="assets/ghost_normal.png" alt="" onerror="this.remove()">
-      <h1 class="title-logo"><span>ハロウィン</span><em class="only-nicola">親指シフト</em><em class="only-morse">モールス信号</em></h1>
+      <h1 class="title-logo"><span>ハロウィン</span><em>親指シフト</em></h1>
       <button id="start-btn" class="start-btn" type="button"><kbd>Enter</kbd> スタート</button>
-      <div><button id="tut-btn" class="tut-open-btn" type="button"><span class="only-nicola">親指シフトとは？</span><span class="only-morse">モールス信号とは？</span> <kbd>H</kbd></button></div>
+      <div><button id="tut-btn" class="tut-open-btn" type="button">親指シフトとは？ <kbd>H</kbd></button></div>
       <p id="title-best" class="title-best"></p>
       <div class="title-foot">
-        <button id="thumb-btn" class="chip-btn only-nicola" type="button">親指キー：<b id="thumb-name"></b> <kbd>T</kbd></button>
+        <button id="thumb-btn" class="chip-btn" type="button">親指キー：<b id="thumb-name"></b> <kbd>T</kbd></button>
         <button id="bgm-btn" class="chip-btn" type="button">BGM：<b id="bgm-state"></b> <kbd>M</kbd></button>
       </div>
       <p class="howto k-pc">IMEはオフ（半角英数）で</p>
@@ -151,22 +148,12 @@
     </div>
 
     <div id="kb-wrap" class="kb-wrap">
-      <div id="keyboard" class="keyboard only-nicola"></div>
-      <div id="morse-pad" class="morse-pad only-morse">
-        <div id="morse-chart" class="morse-chart"></div>
-        <div id="morse-key" class="morse-key">
-          <div class="mk-head"><span class="k-pc"><kbd>Space</kbd> 電鍵</span><span class="k-touch">ここを押す</span> <span class="mk-sym"></span></div>
-          <div class="mk-gauge"><i id="morse-gauge"></i><span class="mk-z z-dot">・ 短く</span><span class="mk-z z-dash">－ 長く</span></div>
-        </div>
-      </div>
-      <p class="kb-legend only-nicola">
+      <div id="keyboard" class="keyboard"></div>
+      <p class="kb-legend">
         <span class="lg-l">左親指と同時</span>
         <span class="lg-n">単独</span>
         <span class="lg-r">右親指と同時</span>
         <span class="lg-k"><kbd>Tab</kbd> キーボード表示 ／ <kbd>Esc</kbd> タイトルへ</span>
-      </p>
-      <p class="kb-legend only-morse">
-        <span class="lg-k"><kbd>Space</kbd> 短く押す＝・ 長く押す＝－ ／ <kbd>Tab</kbd> 符号表 ／ <kbd>Esc</kbd> タイトルへ</span>
       </p>
     </div>
   </section>
@@ -212,7 +199,7 @@
   </section>
 </main>
 
-<!-- ミニゲーム（ノーミスで単語を打つと割り込む）：親指シフトは黒猫ダッシュ、モールスはほうきフライト -->
+<!-- ミニゲーム（ノーミスで単語を打つと割り込む）：黒猫ダッシュ・ほうきフライト・お菓子キャッチからランダム -->
 <section id="cat-run" class="cat-run" hidden>
   <div class="cr-head">
     <div id="cr-title" class="cr-title"></div>
@@ -262,7 +249,6 @@
 
 <script src="js/nicola.js"></script>
 <script src="js/data.js"></script>
-<script src="js/morse.js"></script>
 <script src="js/tutorial.js"></script>
 <script src="js/catrun.js"></script>
 <script src="js/witchfly.js"></script>

@@ -139,21 +139,6 @@ main { position: relative; z-index: 1; min-height: 100vh; display: flex; padding
 .title-logo span { display: block; font-size: .7em; letter-spacing: .2em; }
 .title-logo em { font-style: normal; }
 
-/* ===== 入力方式の切り替え ===== */
-body.mode-morse .only-nicola, body:not(.mode-morse) .only-morse { display: none !important; }
-/* チュートリアルボタンと同じ水色のネオン枠 */
-.mode-btn {
-  position: fixed; right: 16px; bottom: 16px; z-index: 3;
-  padding: 8px 18px; border-radius: 999px; cursor: pointer;
-  background: rgba(8, 28, 44, .6); border: 2px solid var(--neon); color: #dffcff;
-  font: 800 14px var(--round);
-  text-shadow: 0 0 8px rgba(95, 244, 255, .8);
-  box-shadow: 0 0 10px rgba(95, 244, 255, .5), inset 0 0 10px rgba(95, 244, 255, .2);
-  transition: box-shadow .15s;
-}
-.mode-btn:hover { box-shadow: 0 0 20px rgba(95, 244, 255, .8), inset 0 0 14px rgba(95, 244, 255, .35); }
-body:not([data-screen="title"]) .mode-btn { display: none; }
-
 .start-btn {
   padding: 14px 44px; border-radius: 999px; cursor: pointer;
   font: 400 26px var(--logo); color: #2a1206;
@@ -280,7 +265,7 @@ body:not([data-screen="title"]) .mode-btn { display: none; }
 
 /* キーボード */
 .kb-wrap { margin-top: 16px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; }
-.kb-wrap.hide .keyboard, .kb-wrap.hide .morse-chart { display: none; }
+.kb-wrap.hide .keyboard { display: none; }
 .keyboard { width: calc(var(--u) * 10.75); margin: 0 auto; display: grid; gap: var(--gap); }
 .kb-row { display: flex; gap: var(--gap); }
 .kb-row.row1 { margin-left: calc(var(--u) * .25); }
@@ -327,54 +312,6 @@ body:not([data-screen="title"]) .mode-btn { display: none; }
 .lg-n::before { color: var(--ink); }
 .lg-r::before { color: var(--right); }
 .kb-legend .lg-k::before { content: none; }
-
-/* モールス：符号の図形 */
-.mcode { display: inline-flex; align-items: center; gap: .3em; vertical-align: middle; margin: 0 .15em; }
-.mcode i { display: block; height: .45em; border-radius: 99px; background: currentColor; }
-.mcode i.dot { width: .45em; }
-.mcode i.dash { width: 1.35em; }
-.next-hint .mcode { font-size: 30px; margin: 8px 0 4px; color: rgba(244, 236, 255, .4); }
-.mcode i.on { background: var(--gold); box-shadow: 0 0 10px rgba(255, 207, 74, .9); }
-
-/* モールス：符号表と電鍵 */
-.morse-pad { display: grid; gap: 12px; }
-.morse-chart { width: min(100%, 900px); margin: 0 auto; display: grid; grid-template-columns: repeat(9, 1fr); gap: var(--gap); }
-.mc-cell {
-  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px;
-  background: linear-gradient(180deg, #2c1c44, #1c112e);
-  border: 1px solid #4a3470; border-bottom-width: 3px;
-}
-.mc-cell b { width: 1em; font-size: 20px; font-weight: 800; text-align: center; }
-.mc-cell .mcode { font-size: 13px; color: var(--violet); }
-.mc-cell.target {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, #4b2d70, #2c1a47);
-  box-shadow: 0 0 0 2px rgba(255, 207, 74, .5), 0 0 20px rgba(255, 207, 74, .45);
-}
-.mc-cell.target b, .mc-cell.target .mcode { color: var(--gold); }
-.morse-key {
-  width: min(100%, 520px); margin: 0 auto; padding: 10px 16px 12px; border-radius: 14px; cursor: pointer;
-  background: linear-gradient(180deg, #2c1c44, #1c112e);
-  border: 1px solid #4a3470; border-bottom-width: 4px;
-  touch-action: none; transition: transform .06s;
-}
-.morse-key.down { transform: translateY(2px); border-color: var(--violet); box-shadow: 0 0 18px rgba(180, 139, 255, .5); }
-.morse-key.down.dash { border-color: var(--orange); box-shadow: 0 0 18px rgba(255, 123, 28, .55); }
-.mk-head { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 800; }
-.mk-sym { display: inline-block; min-width: 1.4em; font-size: 20px; line-height: 1; color: var(--violet); }
-.morse-key.down .mk-sym::after { content: "・"; }
-.morse-key.down.dash .mk-sym { color: var(--orange); }
-.morse-key.down.dash .mk-sym::after { content: "－"; }
-.mk-gauge {
-  position: relative; height: 22px; margin-top: 8px; border-radius: 99px; overflow: hidden;
-  background: rgba(255, 255, 255, .06);
-}
-.mk-gauge i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(180, 139, 255, .75); }
-.morse-key.dash .mk-gauge i { background: rgba(255, 123, 28, .8); }
-.morse-key:not(.down) .mk-gauge i { opacity: .4; }
-.mk-z { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: rgba(244, 236, 255, .7); }
-.mk-z.z-dot { left: 0; width: 33.33%; border-right: 2px dashed rgba(255, 207, 74, .8); }
-.mk-z.z-dash { left: 33.33%; right: 0; }
 
 /* ===== 結果画面 ===== */
 .result-card {
@@ -601,11 +538,6 @@ body.tut-explain .prompt-kana .ch.current::after { animation: none; }
 .tut-key-demo .key .kc { font-size: 11px; }
 .tut-key-demo ul { list-style: none; margin: 0; padding: 0; }
 .tut-key-demo b { display: inline-block; width: 1.3em; font-size: 18px; }
-.tut-morse-demo { display: flex; gap: 22px; margin: 4px 0 8px; }
-.tut-morse-demo div { display: flex; align-items: center; gap: 4px; }
-.tut-morse-demo b { font-size: 24px; color: #fff; }
-.tut-morse-demo .mcode { font-size: 22px; color: var(--gold); }
-.tut-morse-demo span { font-size: 13px; color: var(--dim); }
 .tut-status { margin: 6px 0 0; min-height: 1.4em; font-size: 14px; font-weight: 800; }
 .tut-status:empty { display: none; }
 .tut-status.wait { color: var(--neon); animation: tutwait 1.4s ease-in-out infinite; }
@@ -636,8 +568,6 @@ body.tut-explain .prompt-kana .ch.current::after { animation: none; }
   .key .kn { font-size: 17px; }
   .key .kl, .key .kr { font-size: 10px; }
   .kb-wrap { overflow-x: auto; }
-  .morse-chart { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
-  .mode-btn { right: 8px; bottom: 8px; font-size: 12px; padding: 6px 12px; }
 }
 
 /* ===== スマホ（タッチ操作） ===== */
@@ -663,7 +593,6 @@ body.tut-explain .prompt-kana .ch.current::after { animation: none; }
   .title-logo { margin: 24px 0 22px; }
 
   #screen-play.active { animation: none; }
-  #screen-play { padding-bottom: calc(min(150px, 24vh) + 32px); }
   .play-head {
     display: flex; align-items: center; gap: 10px;
     padding: 6px 10px; margin-bottom: 8px; border-radius: 12px;
@@ -684,31 +613,9 @@ body.tut-explain .prompt-kana .ch.current::after { animation: none; }
   .next-box { flex-direction: row; align-items: center; justify-content: center; gap: 14px; padding: 8px 12px; border-radius: 14px; }
   .next-label, .next-after { display: none; }
   .next-char { font-size: 52px; }
-  .next-hint .mcode { font-size: 26px; margin: 0; }
 
   .kb-wrap { margin: 0; padding: 0; background: none; border: 0; overflow: visible; }
   .kb-legend { display: none; }
-  /* 符号表はチュートリアルのときだけ小さく出す */
-  body:not(.tut-on) .morse-chart { display: none; }
-  .morse-chart { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 3px; margin-bottom: 8px; }
-  .mc-cell { padding: 3px 5px; gap: 4px; border-radius: 7px; }
-  .mc-cell b { font-size: 14px; }
-  .mc-cell .mcode { font-size: 9px; }
-
-  /* 電鍵：画面下に固定した丸ボタン */
-  .morse-key {
-    position: fixed; left: 50%; z-index: 5;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    width: min(150px, 24vh); height: min(150px, 24vh); margin: 0 0 0 calc(min(150px, 24vh) / -2);
-    padding: 0; border-radius: 50%;
-    border: 3px solid #6a4a9a; border-bottom-width: 7px;
-    background: radial-gradient(circle at 40% 35%, #4b2d70, #1c112e 75%);
-    box-shadow: 0 0 18px rgba(180, 139, 255, .35);
-    -webkit-tap-highlight-color: transparent;
-  }
-  .morse-key .mk-head, .morse-key .mk-gauge { display: none; }
-  .morse-key.down { transform: translateY(3px); border-bottom-width: 4px; border-color: var(--violet); background: radial-gradient(circle at 40% 35%, #8a5ad0, #3a1f63 75%); }
-  .morse-key.down.dash { border-color: var(--orange); background: radial-gradient(circle at 40% 35%, #ffb35a, #a84300 75%); }
 
   /* ミニゲームは画面いっぱい */
   .cat-run {
